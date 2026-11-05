@@ -166,3 +166,18 @@ test("generador procedural: niveles de respaldo también solubles", () => {
     assert.ok(E.isSolvable(E.stateFromLevel(level), { limit: 200000 }), `nivel ${n} soluble`);
   }
 });
+
+test("hasAnyMove detecta tableros sin salida y no descarta los movimientos simétricos", () => {
+  const stuck = { bottles: [[0, 1], [2, 3], [4, 0], [1, 2]], caps: [5, 5, 5, 5], blockers: {} };
+  assert.equal(E.hasAnyMove(stuck), false, "topes distintos y ninguna botella vacía: no hay jugadas");
+
+  // el solver descarta mover un tramo uniforme a una botella vacía (no aporta),
+  // pero para el jugador sí es un vertido legal: no debe reportarse como trabado.
+  const symmetric = { bottles: [[0, 0], [], []], caps: [2, 2, 2], blockers: {} };
+  assert.equal(E.candidateMoves(symmetric).length, 0);
+  assert.equal(E.hasAnyMove(symmetric), true);
+
+  const playable = { bottles: [[0, 1], [1], [2], [2]], caps: [4, 4, 4, 4], blockers: {} };
+  assert.equal(E.hasAnyMove(playable), true);
+  assert.equal(E.hasAnyMove({ bottles: [[0], [0]], caps: [2, 2], blockers: {} }), true);
+});

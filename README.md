@@ -19,6 +19,9 @@ Tocas una botella con líquido y luego otra para verter.
 - Una botella queda resuelta cuando está **llena de un solo color**; al completarse aparece su
   tapón y suena el corcho.
 - El nivel se gana cuando todas las botellas están vacías o resueltas.
+- Si no queda **ningún vertido posible** y el nivel no está resuelto, el juego se detiene y ofrece
+  salida: añadir botella (cuando no hay espacio), mezclar, deshacer o reiniciar. El nivel no se
+  pierde y el cronómetro se frena mientras decidís.
 
 **Botella mágica**: en su modo aparece una botella alta a la izquierda, sembrada con unas pocas
 unidades de un color. Hay que llenarla entera con ese color (su capacidad completa) para resolver
@@ -47,7 +50,7 @@ y las monedas se guardan en `localStorage`.
 | Booster | Qué hace |
 |---|---|
 | **Deshacer** | revierte el último vertido (historial real) |
-| **Mezclar** | reparte de nuevo el líquido restante y **verifica que siga teniendo solución** antes de aceptar |
+| **Mezclar** | rearma el tablero: parte de una disposición canónica resuelta y la desarma moviendo una unidad por vez; cada paso es reversible con un vertido legal, así que el resultado **siempre tiene solución** |
 | **Botella** | añade una botella vacía |
 | **Revelar** | muestra el contenido oculto por cortinas y cintas |
 

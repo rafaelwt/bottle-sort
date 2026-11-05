@@ -201,6 +201,17 @@ body {
 .toggle-txt b { font-size: 15px; }
 .toggle-txt small { font-size: 12px; color: #cbb6ff; }
 
+/* ---------------- sin jugadas ---------------- */
+.stuck-card {
+  display: grid;
+  gap: 9px;
+  width: min(320px, calc(100vw - 40px));
+  text-align: center;
+}
+.stuck-title { font-size: 22px; font-weight: 900; color: var(--gold); text-shadow: 0 3px 0 #7a4404; }
+.stuck-sub { font-size: 13px; color: #d9ccff; margin-bottom: 4px; }
+.stuck-card .primary, .stuck-card .ghost { width: 100%; }
+
 /* ---------------- tablero ---------------- */
 .stage {
   position: relative;

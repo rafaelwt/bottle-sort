@@ -213,6 +213,47 @@
   /* ---------------- utilidades ---------------- */
   function hint(text) { hintEl.textContent = text; }
 
+  /* ---------------- sin jugadas (LevelWinOrStuckSystem.HasNoMove) ----------------
+   * Si el tablero no tiene ningún vertido legal y el nivel no está resuelto, se frena
+   * el reloj y se ofrece salida: mezclar (reparto con solución verificada), deshacer
+   * o reiniciar. No es derrota: el nivel no se pierde.
+   */
+  var onStuckOverlay = null;
+
+  function checkStuck() {
+    if (!game || game.done || game.stuck) return;
+    if (E.isWon(game.state)) return;
+    if (E.hasAnyMove(game.state)) return;
+    game.stuck = true;
+    pauseClock();
+    game.selected = null;
+    render();
+    hint("Sin jugadas: mezcla, deshace o reinicia.");
+    if (onStuckOverlay) {
+      $("stuckSub").textContent = "No queda ningún vertido posible (" +
+        remainingBottles() + " botellas por resolver).";
+      $("btnStuckUndo").hidden = game.history.length === 0;
+      // sin espacio libre no hay mezcla posible: la salida es una botella nueva
+      var free = 0;
+      game.state.bottles.forEach(function (b, i) { free += (game.state.caps[i] || 4) - b.length; });
+      var noRoom = free === 0;
+      $("btnStuckShuffle").classList.toggle("primary", !noRoom);
+      $("btnStuckShuffle").classList.toggle("ghost", noRoom);
+      $("btnStuckShuffle").disabled = noRoom;
+      $("btnStuckExtra").classList.toggle("primary", noRoom);
+      $("btnStuckExtra").classList.toggle("ghost", !noRoom);
+      onStuckOverlay.hidden = false;
+    }
+    sfx("bubble");
+  }
+
+  function clearStuck() {
+    if (!game) return;
+    game.stuck = false;
+    if (onStuckOverlay) onStuckOverlay.hidden = true;
+    resumeClock();
+  }
+
   // Cronómetro del nivel: cuenta para arriba, sin límite (solo para saber cuánto tardaste).
   function fmtTime(ms) {
     var total = Math.max(0, Math.floor(ms / 1000));
@@ -221,9 +262,25 @@
     return m + ":" + (sec < 10 ? "0" : "") + sec;
   }
 
+  function elapsedMs() {
+    if (!game) return 0;
+    if (!game.clockRunning) return game.accMs || 0;
+    return Date.now() - game.startedAt;
+  }
+  function pauseClock() {
+    if (!game || !game.clockRunning) return;
+    game.accMs = Date.now() - game.startedAt;
+    game.clockRunning = false;
+  }
+  function resumeClock() {
+    if (!game || game.clockRunning) return;
+    game.startedAt = Date.now() - (game.accMs || 0);
+    game.clockRunning = true;
+  }
+
   setInterval(function () {
-    if (!game || game.done || !game.startedAt) return;
-    timeLabel.textContent = fmtTime(Date.now() - game.startedAt);
+    if (!game || game.done) return;
+    timeLabel.textContent = fmtTime(elapsedMs());
   }, 500);
 
   // El agua del juego es color plano: la profundidad la da la elipse de la
@@ -328,10 +385,14 @@
       rows: rows,
       par: computePar(level),
       startedAt: Date.now(),
-      timeMs: 0
+      accMs: 0,
+      clockRunning: true,
+      timeMs: 0,
+      stuck: false
     };
     boardEl.style.setProperty("--seg", computeSeg(level, magicIndex) + "px");
     winOverlay.hidden = true;
+    if (onStuckOverlay) onStuckOverlay.hidden = true;
     levelLabel.textContent = String(i + 1);
     coinsLabel.textContent = save.unlimited ? "∞" : String(save.coins);
     movesLabel.textContent = "0";
@@ -340,6 +401,7 @@
       ? "Llena la botella mágica con un solo color (" + level.caps[game.magicIndex] + " unidades)"
       : modeLabel() + " · " + level.colors + " colores · toca una botella y luego otra");
     render();
+    checkStuck();
   }
 
   function computePar(level) {
@@ -452,7 +514,7 @@
 
   function bottleEl(index) {
     var st = game.state;
-    var bottle = st.bottles[index];
+    var bottle = st.bottles[index] || [];
     var cap = st.caps[index] || 4;
     // La botella mágica siempre muestra su color semilla (el OBIM 6 que trae es
     // parte del arte del "pillow", no un bloqueador real).
@@ -495,7 +557,7 @@
   }
 
   function onBottleClick(index) {
-    if (!game || game.busy || game.done) return;
+    if (!game || game.busy || game.done || game.stuck) return;
     var st = game.state;
 
     if (game.selected === null) {
@@ -702,6 +764,7 @@
           updateBoosterButtons();
           if (E.isWon(game.state)) { finishLevel(); return; }
           hint(completed ? "¡Botella completada!" : "Sigue así: " + remainingBottles() + " botellas por resolver.");
+          checkStuck();
         }, 200);
       }, pourMs + 80);
     }, ARRIVE + TILT_MS);
@@ -1018,7 +1081,9 @@
 
   function finishLevel() {
     game.done = true;
-    game.timeMs = Date.now() - game.startedAt;
+    game.timeMs = elapsedMs();
+    game.clockRunning = false;
+    timeLabel.textContent = fmtTime(game.timeMs);
     var par = game.par || 20;
     var stars = game.moves <= par ? 3 : game.moves <= Math.round(par * 1.5) ? 2 : 1;
     var reward = game.level.tier >= 5 ? 100 : game.level.tier >= 3 ? 60 : 20;
@@ -1090,10 +1155,102 @@
     if (!spendBooster("undo")) return;
     var snap = game.history.pop();
     game.state = { bottles: snap.bottles, caps: game.state.caps.slice(), blockers: snap.blockers };
+    // la botella extra (o cualquier botella agregada) deja de existir: limpiar filas
+    game.rows = game.rows
+      .map(function (row) { return row.filter(function (ix) { return ix < game.state.bottles.length; }); })
+      .filter(function (row) { return row.length > 0; });
     game.selected = null;
     game.moves = Math.max(0, game.moves - 1);
     hint("Movimiento deshecho.");
+    clearStuck();
     render();
+    checkStuck();
+  }
+
+
+  /* ---------------- mezcla garantizada ----------------
+   * Repartir al azar y rezar para que tenga solución casi nunca funciona cuando el
+   * tablero está trabado. En su lugar: se arma una disposición canónica (cada color
+   * agrupado, que es el estado resuelto) y se la "desarma" con movimientos inversos
+   * de vertidos legales. Cada movimiento inverso se valida simulando el vertido
+   * directo: si vuelve al estado anterior, el resultado es resoluble por construcción
+   * (basta con deshacer los pasos en orden).
+   */
+  function sameBottles(a, b) {
+    if (a.length !== b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i].length !== b[i].length) return false;
+      for (var j = 0; j < a[i].length; j++) if (a[i][j] !== b[i][j]) return false;
+    }
+    return true;
+  }
+
+  // Disposición canónica: cada color agrupado y, si se puede, entrando justo en una
+  // botella (así las botellas mágicas de 10/11/16 reciben su color completo).
+  function canonicalLayout(state) {
+    var counts = {};
+    state.bottles.forEach(function (b) {
+      b.forEach(function (c) { counts[c] = (counts[c] || 0) + 1; });
+    });
+    var bottles = state.bottles.map(function () { return []; });
+    var caps = state.caps.slice();
+    var order = bottles.map(function (_, i) { return i; })
+      .sort(function (a, b) { return (caps[b] || 4) - (caps[a] || 4) || a - b; });
+
+    order.forEach(function (i) {
+      var cap = caps[i] || 4;
+      while (bottles[i].length < cap) {
+        var space = cap - bottles[i].length;
+        var left = Object.keys(counts).filter(function (c) { return counts[c] > 0; });
+        if (!left.length) break;
+        var exact = left.filter(function (c) { return counts[c] === space; })[0];
+        var pick = exact != null ? exact : left.sort(function (a, b) { return counts[b] - counts[a]; })[0];
+        var n = Math.min(space, counts[pick]);
+        for (var k = 0; k < n; k++) bottles[i].push(Number(pick));
+        counts[pick] -= n;
+      }
+    });
+    return { bottles: bottles, caps: caps, blockers: Object.assign({}, state.blockers) };
+  }
+
+  function moveUnits(state, from, to, k) {
+    var bottles = state.bottles.map(function (b) { return b.slice(); });
+    var moved = bottles[from].splice(bottles[from].length - k, k);
+    bottles[to] = bottles[to].concat(moved);
+    return { bottles: bottles, caps: state.caps.slice(), blockers: Object.assign({}, state.blockers) };
+  }
+
+  /* Desarma la disposición canónica moviendo UNA unidad por vez a otra botella cuyo
+   * tope sea de otro color (o esté vacía). Ese movimiento siempre es reversible con un
+   * vertido legal (el vertido de vuelta mueve exactamente esa unidad), así que el
+   * tablero resultante tiene solución: basta con deshacer los pasos en orden inverso.
+   * Mezclar con permutaciones al azar, en cambio, casi nunca da un tablero resoluble.
+   */
+  function scrambleUnits(base, rng, steps) {
+    var cur = { bottles: base.bottles.map(function (b) { return b.slice(); }),
+                caps: base.caps.slice(), blockers: Object.assign({}, base.blockers) };
+    var applied = 0;
+    for (var s = 0; s < steps; s++) {
+      var moved = false;
+      for (var t = 0; t < 80 && !moved; t++) {
+        var a = Math.floor(rng() * cur.bottles.length);
+        var b = Math.floor(rng() * cur.bottles.length);
+        if (a === b) continue;
+        var src = cur.bottles[a], dst = cur.bottles[b];
+        if (!src.length || dst.length >= (cur.caps[b] || 4)) continue;
+        var color = src[src.length - 1];
+        if (dst.length && dst[dst.length - 1] === color) continue;  // el vertido de vuelta movería más de 1
+        var cand = moveUnits(cur, a, b, 1);
+        var back = E.pour(cand, b, a);
+        if (back && sameBottles(back.state.bottles, cur.bottles)) {
+          cur = cand;
+          moved = true;
+          applied++;
+        }
+      }
+      if (!moved) break;
+    }
+    return { state: cur, steps: applied };
   }
 
   function doShuffle() {
@@ -1101,35 +1258,66 @@
     if (!spendBooster("shuffle")) return;
 
     var state = game.state;
-    var shape = state.bottles.map(function (b) { return b.length; });
-    var pool = [];
-    state.bottles.forEach(function (b) { pool.push.apply(pool, b); });
     var rng = E.mulberry32((game.index + 1) * 7919 + game.moves * 31 + (Date.now() % 1000));
 
-    for (var attempt = 0; attempt < 25; attempt++) {
-      var shuffled = shuffleArray(pool.slice(), rng);
-      var bottles = [];
-      var cursor = 0;
-      for (var i = 0; i < shape.length; i++) {
-        bottles.push(shuffled.slice(cursor, cursor + shape[i]));
-        cursor += shape[i];
-      }
-      var candidate = { bottles: bottles, caps: state.caps.slice(), blockers: Object.assign({}, state.blockers) };
-      if (E.isSolvable(candidate, { limit: 40000 })) {
-        game.history.push({
-          bottles: state.bottles.map(function (b) { return b.slice(); }),
-          blockers: Object.assign({}, state.blockers)
-        });
-        game.state = candidate;
-        game.selected = null;
-        game.moves += 1;
-        hint("Mezclado (solución verificada).");
-        render();
-        return;
+    // 1) mezcla garantizada: disposición canónica desarmada unidad por unidad.
+    //    Si la canónica ya es un tablero resuelto (cada color entra justo en las
+    //    botellas), el resultado es resoluble por construcción: basta con deshacer
+    //    los pasos en orden inverso. Si no (formas raras), se verifica con el solver.
+    var canonical = canonicalLayout(state);
+    var canonicalSolved = E.isWon(canonical);
+    var units = canonical.bottles.reduce(function (n, b) { return n + b.length; }, 0);
+    var candidate = null;
+    var usable = false;
+    for (var pass = 0; pass < 4 && !usable; pass++) {
+      var scrambled = scrambleUnits(canonical, rng, Math.max(8, units * 2) + pass * 6).state;
+      var cand = { bottles: scrambled.bottles, caps: state.caps.slice(),
+                   blockers: Object.assign({}, state.blockers) };
+      // la reversibilidad garantiza solución; igual pedimos que cambie y que se pueda jugar
+      var ok = !sameBottles(cand.bottles, state.bottles) && !E.isWon(cand) && E.hasAnyMove(cand) &&
+               (canonicalSolved || E.isSolvable(cand, { limit: 20000 }));
+      if (ok) {
+        candidate = cand;
+        usable = true;
       }
     }
-    hint("No se encontró una mezcla resoluble; no se gastó el uso.");
+
+    // 2) plan B: reparto al azar verificado con el solver
+    if (!usable) {
+      var shape = state.bottles.map(function (b) { return b.length; });
+      var pool = [];
+      state.bottles.forEach(function (b) { pool.push.apply(pool, b); });
+      for (var attempt = 0; attempt < 40 && !usable; attempt++) {
+        var shuffled = shuffleArray(pool.slice(), rng);
+        var bottles = [];
+        var cursor = 0;
+        for (var i = 0; i < shape.length; i++) {
+          bottles.push(shuffled.slice(cursor, cursor + shape[i]));
+          cursor += shape[i];
+        }
+        candidate = { bottles: bottles, caps: state.caps.slice(),
+                      blockers: Object.assign({}, state.blockers) };
+        usable = E.isSolvable(candidate, { limit: 40000 });
+      }
+    }
+
+    if (!usable) {
+      hint("No se encontró una mezcla resoluble; no se gastó el uso.");
+      render();
+      return;
+    }
+
+    game.history.push({
+      bottles: state.bottles.map(function (b) { return b.slice(); }),
+      blockers: Object.assign({}, state.blockers)
+    });
+    game.state = candidate;
+    game.selected = null;
+    game.moves += 1;
+    hint("Mezclado (solución verificada).");
+    clearStuck();
     render();
+    checkStuck();
   }
 
   function shuffleArray(list, rng) {
@@ -1153,7 +1341,9 @@
     game.rows = appendRowCell(game.rows, game.state.bottles.length - 1);
     boardEl.style.setProperty("--seg", computeSeg(game.level, game.magicIndex) + "px");
     hint("Botella extra añadida.");
+    clearStuck();
     render();
+    checkStuck();
   }
 
   function appendRowCell(rows, index) {
@@ -1220,6 +1410,12 @@
     if (!btn) return;
     onBottleClick(Number(btn.dataset.index));
   });
+
+  onStuckOverlay = $("stuckOverlay");
+  $("btnStuckShuffle").addEventListener("click", function () { sfx("button"); doShuffle(); });
+  $("btnStuckExtra").addEventListener("click", function () { sfx("button"); doExtra(); });
+  $("btnStuckUndo").addEventListener("click", function () { sfx("button"); doUndo(); });
+  $("btnStuckRestart").addEventListener("click", function () { sfx("button"); doRestart(); });
 
   $("btnUndo").addEventListener("click", doUndo);
   $("btnShuffle").addEventListener("click", doShuffle);
@@ -1310,6 +1506,8 @@
     loadMode: loadMode,
     state: function () { return game; },
     click: onBottleClick,
+    checkStuck: checkStuck,
+    debug: function () { return { canonicalLayout: canonicalLayout, scrambleUnits: scrambleUnits, sameBottles: sameBottles }; },
     save: function () { return save; },
     levelCount: function () { return LEVELS.length; },
     music: function () {

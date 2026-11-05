@@ -180,6 +180,21 @@
   }
 
   /* ---------- generación de movimientos ---------- */
+  // ¿hay al menos un vertido legal? A diferencia de candidateMoves (que descarta
+  // movimientos simétricos porque no ayudan a resolver), acá cuenta cualquier
+  // vertido posible: es el chequeo de "sin jugadas" para el jugador.
+  function hasAnyMove(state) {
+    var bottles = state.bottles;
+    for (var from = 0; from < bottles.length; from++) {
+      if (!bottles[from].length) continue;
+      for (var to = 0; to < bottles.length; to++) {
+        if (to === from) continue;
+        if (pourAmount(state, from, to)) return true;
+      }
+    }
+    return false;
+  }
+
   function candidateMoves(state) {
     var bottles = state.bottles;
     var moves = [];
@@ -379,6 +394,7 @@
     isWon: isWon,
     keyOf: keyOf,
     candidateMoves: candidateMoves,
+    hasAnyMove: hasAnyMove,
     solve: solve,
     isSolvable: isSolvable,
     normalizeLevel: normalizeLevel,

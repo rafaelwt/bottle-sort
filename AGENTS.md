@@ -37,6 +37,20 @@ test/engine.test.cjs  node --test
 - Las botellas vacías son simétricas: solo se considera la primera como destino.
 - `solve()` es DFS con memo; `isSolvable()` se usa para validar mezclas y catálogo.
 
+## Sin jugadas (stuck)
+
+- `E.hasAnyMove(state)` es el chequeo del jugador (cualquier vertido legal, incluye los simétricos
+  que `candidateMoves` descarta para el solver). No usar `candidateMoves` para decidir si el
+  tablero está trabado.
+- `checkStuck()` corre al terminar un vertido, al inicio del nivel y después de cada booster:
+  congela el reloj, bloquea el tablero y abre `#stuckOverlay`.
+- Salidas del cartel: `doExtra()` (botella nueva, la única salida si no hay espacio libre),
+  `doShuffle()` (nunca devuelve un tablero sin solución), `doUndo()` y `doRestart()`.
+- `doShuffle()` no reparte al azar: `canonicalLayout()` arma cada color agrupado (la botella
+  grande recibe su color completo) y `scrambleUnits()` mueve una unidad por vez a una botella con
+  otro tope; como cada paso es reversible con un vertido legal, el resultado es resoluble por
+  construcción. El reparto al azar + solver queda sólo como plan B.
+
 ## Tests
 
 ```bash
