@@ -59,7 +59,9 @@ body {
   padding: 10px 14px 4px;
 }
 
-.hud-mid { flex: 1; display: flex; justify-content: center; }
+.hud-mid { flex: 1; display: flex; justify-content: center; gap: clamp(8px, 3vw, 18px); min-width: 0; }
+.stat { justify-content: center; min-width: 0; }
+.hud { gap: 6px; padding: 10px 10px 4px; }
 .hud-right { display: flex; align-items: center; gap: 8px; }
 
 .hud-btn {
@@ -80,8 +82,8 @@ body {
 .level-icon { color: var(--gold); font-size: 14px; }
 
 .stat { display: flex; align-items: baseline; gap: 8px; }
-.stat-k { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: #cbb6ff; }
-.stat-v { font-size: 18px; font-weight: 800; }
+.stat-k { font-size: 9.5px; letter-spacing: .08em; text-transform: uppercase; color: #cbb6ff; white-space: nowrap; }
+.stat-v { font-size: 16px; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
 
 .coins {
   display: inline-flex;
@@ -421,6 +423,11 @@ body.flat-water .liquid { background-image: none; }
 .level-cell.done { background: linear-gradient(180deg, #6cf0a4, #2fa96a); border-color: #b6ffd4; color: #06351b; }
 .level-cell.current { outline: 3px solid var(--gold); }
 
+@media (max-width: 392px) {
+  .stat-k { display: none; }
+  .coins { padding: 4px 8px; }
+}
+
 @media (max-height: 620px) {
   :root { --seg: clamp(20px, 4.4vh, 32px); --bottle-w: clamp(34px, 7vw, 50px); }
   .hint-line { display: none; }
@@ -475,11 +482,17 @@ body.flat-water .liquid { background-image: none; }
   gap: clamp(10px, 2.2vh, 22px);
   align-items: center;
 }
+/* La botella mágica NO lleva aro: el juego la resalta con un brillo suave
+   (sprite bottleOutline usado como silueta de luz detrás del frasco). */
+.bottle.magic .glass { box-shadow: 0 6px 14px -8px #00000088; }
+/* brillo suave por fuera, sin aro duro */
 .bottle.magic .glass {
-  box-shadow: 0 0 0 3px #a06bff66, 0 0 30px #8b5cf666;
+  box-shadow: 0 0 26px 2px #8b5cf64d, 0 6px 14px -8px #00000088;
 }
-.bottle.magic .frame { filter: drop-shadow(0 0 7px #a06bffaa) saturate(1.15); }
-.bottle.magic.complete .glass { box-shadow: 0 0 0 3px #a06bff66, 0 0 30px #8b5cf666; }
+.bottle.magic .frame { filter: drop-shadow(0 0 5px #a06bff66) saturate(1.08); }
+.bottle.magic.complete .glass {
+  box-shadow: 0 0 26px 2px #8b5cf64d, 0 6px 14px -8px #00000088;
+}
 
 /* ---- vertido fluido: chorro, drenaje, squash del frasco ---- */
 .stream {
@@ -556,6 +569,19 @@ body.flat-water .liquid { background-image: none; }
   border-image: url("sprites/bottle_front.png") 56 6 46 6 fill stretch;
   opacity: 0.72;
 }
+
+/* mientras la botella está inclinada la superficie la dibuja .surface (nivelada) */
+.water.tilted .liquid.top::before { content: none; }
+.surface {
+  position: absolute;
+  left: 0;
+  top: 0;
+  background: var(--surface, none) center / 100% 100% no-repeat;
+  pointer-events: none;
+  z-index: 2;
+  transform-origin: center;
+}
+.water.tilted { transition: clip-path .12s linear; }
 
 .liquid.top::before {
   content: "";

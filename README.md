@@ -119,8 +119,16 @@ corcho y aparece el tapón en la boca.
 El ángulo de inclinación no es fijo: sale de `_rotationsByHeights` del juego (35° con el destino
 casi lleno, 105° con mucho espacio). Los valores están en `docs/logic/palette.md`.
 
+**El agua se mantiene nivelada** mientras la botella se inclina: la superficie libre queda
+horizontal y el líquido se recorta contra ese plano (como `WaterItem.RotateWaters` en el juego).
+Con ángulos chicos (destino casi lleno) el agua queda apoyada en la base; pasando la horizontal
+corre hacia la boca.
+
 La música (`sounds/gameplay_music.*`, `MagicSort_Gameplay_Final`) suena en bucle desde el primer
 toque y se apaga con el botón de sonido.
+
+El HUD muestra **tiempo** del nivel: cuenta para arriba y se detiene al ganar. No hay límite: es
+solo para saber cuánto tardaste. El mejor tiempo de cada nivel se guarda en `localStorage`.
 
 El sonido del vertido depende de la cantidad (`1` a `8` unidades tienen clip propio).
 Todo se reproduce con elementos `Audio` clonados para tolerar solapamientos y funcionar desde
@@ -134,7 +142,11 @@ No forma parte de la app y no se carga desde `index.html`.
 
 ## Pendiente
 
-- Colores ocultos (`?`) y objetos especiales (generadores, cajas, duendes).
+- Bloqueadores que restringen movimientos (hielo, arcilla) y objetos especiales: cajas con llave,
+  generadores, duende, alfombra.
+- Colores ocultos (`?`), `MagicSeal`/`Ivy` (370 niveles del catálogo los usan) y botellas especiales
+  distintas de la mágica (BestSort, Chargeable, SingleUse, RainbowWater, KeySort).
+- Detección de "sin jugadas" y flujo de reintento; animación de entrada al nivel.
 - Eventos, vidas/energía, tienda y clasificaciones.
 - Escalado del tablero para pantallas muy pequeñas (5+ filas).
 

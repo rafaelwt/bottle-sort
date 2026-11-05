@@ -71,6 +71,14 @@ colores) y solubilidad de los 4 modos (885 / 399 / 274 / 1346 niveles).
   funcione desde `file://`.
 - La animación de vertido es incremental (`addUnits`/`drainUnits`), nunca un re-render completo:
   si se re-renderiza, se pierde la fluidez.
+- Al inclinar, el agua se recorta con un plano horizontal (`tiltLiquid`): el clipping va en
+  `.water` (coordenadas locales) y la elipse de superficie se dibuja aparte en `.glass`
+  (`.surface`), porque el `clip-path` de `.water` la cortaría al medio. Si se toca la geometría
+  hay que mantener el invariante: **área recortada = nivel de líquido** (se resuelve por bisección).
+- `shiftWaterToMouth` se escala con el ángulo (`(angle-70)/35`): por debajo de 90° el líquido queda
+  en la base, no en la boca.
+- El cronómetro (`timeLabel`) cuenta para arriba y no limita nada; se guarda el mejor tiempo por
+  nivel en `save.bestTime["modo:índice"]`.
 - La selección no dibuja borde ni halo (el juego no lo hace): `.selected` solo eleva la botella.
 - Un destino inválido **deselecciona** (`Selection.Deselect` del original): no dejar la botella
   elevada esperando otro toque.

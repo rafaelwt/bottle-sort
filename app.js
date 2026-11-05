@@ -87,6 +87,7 @@
       boosters: Object.assign({}, ECO.initialBoosters),
       stars: {},
       best: {},
+      bestTime: {},
       sound: true
     };
   }
@@ -137,6 +138,7 @@
   var hintEl = $("hintLine");
   var levelLabel = $("levelLabel");
   var movesLabel = $("movesLabel");
+  var timeLabel = $("timeLabel");
   var coinsLabel = $("coinsLabel");
   var winOverlay = $("winOverlay");
   var levelsOverlay = $("levelsOverlay");
@@ -205,6 +207,19 @@
 
   /* ---------------- utilidades ---------------- */
   function hint(text) { hintEl.textContent = text; }
+
+  // Cronómetro del nivel: cuenta para arriba, sin límite (solo para saber cuánto tardaste).
+  function fmtTime(ms) {
+    var total = Math.max(0, Math.floor(ms / 1000));
+    var m = Math.floor(total / 60);
+    var sec = total % 60;
+    return m + ":" + (sec < 10 ? "0" : "") + sec;
+  }
+
+  setInterval(function () {
+    if (!game || game.done || !game.startedAt) return;
+    timeLabel.textContent = fmtTime(Date.now() - game.startedAt);
+  }, 500);
 
   // El agua del juego es color plano: la profundidad la da la elipse de la
   // superficie y el vidrio. Nada de degradados por tramo.
@@ -306,13 +321,16 @@
       done: false,
       revealed: false,
       rows: rows,
-      par: computePar(level)
+      par: computePar(level),
+      startedAt: Date.now(),
+      timeMs: 0
     };
     boardEl.style.setProperty("--seg", computeSeg(level, magicIndex) + "px");
     winOverlay.hidden = true;
     levelLabel.textContent = String(i + 1);
     coinsLabel.textContent = save.unlimited ? "∞" : String(save.coins);
     movesLabel.textContent = "0";
+    timeLabel.textContent = "0:00";
     hint(game.magicIndex >= 0
       ? "Llena la botella mágica con un solo color (" + level.caps[game.magicIndex] + " unidades)"
       : modeLabel() + " · " + level.colors + " colores · toca una botella y luego otra");
@@ -557,6 +575,15 @@
 
     var dx = dstX - mouthX;
     var dy = dstY - mouthY;
+    var fromWaterEl = fromEl.querySelector(".glass .water");
+    var waterW = fromWaterEl ? fromWaterEl.offsetWidth : 0;
+    var waterH = fromWaterEl ? fromWaterEl.offsetHeight : 0;
+    var waterLeft = 0, waterTop = 0;
+    if (fromWaterEl) {
+      var wr = fromWaterEl.getBoundingClientRect();
+      waterLeft = wr.left - fRect.left;
+      waterTop = wr.top - fRect.top;
+    }
     var seg = parseFloat(getComputedStyle(boardEl).getPropertyValue("--seg")) || 44;
     var lift = Math.max(12, Math.min(seg * 0.45, 24));    // _bottleSelectionAnimationHeight
     var hover = Math.max(18, Math.min(seg * 0.75, 34));   // _heightOffset sobre la boca destino
@@ -603,7 +630,23 @@
       var fromWater = fromEl.querySelector(".glass .water");
       var oldLevel = res.state.bottles[from].length + amount;
       var cap = res.state.caps[from] || 4;
-      if (fromWater) shiftWaterToMouth(fromWater, Math.max(0, cap - oldLevel), TILT_MS);
+      if (fromWater) {
+        // El líquido solo corre hacia la boca cuando la botella pasa de la horizontal
+        // (>90°). Con ángulos chicos (destino casi lleno) queda apoyado en la base.
+        var runToMouth = Math.max(0, Math.min(1, (angle - 70) / 35));
+        shiftWaterToMouth(fromWater,
+          (Math.max(0, cap - oldLevel) * runToMouth).toFixed(2) * 1, TILT_MS);
+        // superficie nivelada: el agua no se va con la botella
+        tiltLiquid(fromWater, {
+          waterW: waterW, waterH: waterH, waterLeft: waterLeft, waterTop: waterTop,
+          layoutTop: layoutTop, dx: dx, dy: dy - hover,
+          pivotX: fromEl.offsetWidth / 2, pivotY: padTop,
+          rad: (dir * angle) * Math.PI / 180, deg: dir * angle, scale: scale,
+          fraction: Math.min(1, oldLevel / cap),
+          seg: seg,
+          surface: SURFACE_SPRITES[color]
+        });
+      }
     }, ARRIVE);
 
     // fase 5: cae el agua y el origen se vacía en sincronía
@@ -630,6 +673,7 @@
 
       setTimeout(function () {
         paintWater(toWater, to);
+        untiltLiquid(fromWater);
         settleWater(fromWater, from, 180);
         fromEl.classList.remove("pouring");
         fromEl.style.transitionDuration = "";
@@ -656,6 +700,108 @@
         }, 200);
       }, pourMs + 80);
     }, ARRIVE + TILT_MS);
+  }
+
+
+  /* ---------------- líquido nivelado al inclinar (WaterItem.RotateWaters) ----------------
+   * El juego mantiene la superficie del agua horizontal cuando el frasco se inclina: los
+   * tramos de color siguen el eje de la botella, pero la superficie libre queda plana.
+   * Acá se recorta el contenedor con una línea horizontal en coordenadas de pantalla y se
+   * dibuja encima la elipse de superficie, girada para quedar nivelada.
+   */
+  function tiltLiquid(waterEl, opts) {
+    if (!waterEl) return null;
+    var W = opts.waterW, H = opts.waterH;
+    var rad = opts.rad, k = opts.scale;
+    var cx = opts.pivotX, cy = opts.pivotY;
+
+    // y de pantalla de un punto (x,y) del agua:  A*x + B*y + C
+    var A = Math.sin(rad) * k;
+    var B = Math.cos(rad) * k;
+    var C = opts.layoutTop + opts.dy +
+      k * (Math.sin(rad) * (opts.waterLeft - cx) + Math.cos(rad) * (opts.waterTop - cy));
+
+    var quad = [{ x: 0, y: 0 }, { x: W, y: 0 }, { x: W, y: H }, { x: 0, y: H }];
+    var ys = quad.map(function (p) { return A * p.x + B * p.y + C; });
+    var lo = Math.min.apply(null, ys), hi = Math.max.apply(null, ys);
+
+    // área del polígono recortado por la mitad y >= S
+    function clipAt(S) {
+      var out = [];
+      for (var i = 0; i < quad.length; i++) {
+        var p = quad[i], q = quad[(i + 1) % quad.length];
+        var dp = (A * p.x + B * p.y + C) - S;
+        var dq = (A * q.x + B * q.y + C) - S;
+        if (dp >= 0) out.push(p);
+        if ((dp >= 0) !== (dq >= 0)) {
+          var t = dp / (dp - dq);
+          out.push({ x: p.x + (q.x - p.x) * t, y: p.y + (q.y - p.y) * t });
+        }
+      }
+      return out;
+    }
+    function area(poly) {
+      var a = 0;
+      for (var i = 0; i < poly.length; i++) {
+        var p = poly[i], q = poly[(i + 1) % poly.length];
+        a += p.x * q.y - q.x * p.y;
+      }
+      return Math.abs(a) / 2;
+    }
+
+    var target = Math.max(0.02, Math.min(0.98, opts.fraction)) * (W * H);
+    var a1 = lo, b1 = hi;
+    for (var it = 0; it < 28; it++) {
+      var mid = (a1 + b1) / 2;
+      if (area(clipAt(mid)) > target) a1 = mid; else b1 = mid;
+    }
+    var S = (a1 + b1) / 2;
+    var poly = clipAt(S);
+    if (poly.length < 3) return null;
+
+    waterEl.classList.add("tilted");
+    waterEl.style.clipPath = "polygon(" + poly.map(function (p) {
+      return p.x.toFixed(1) + "px " + p.y.toFixed(1) + "px";
+    }).join(", ") + ")";
+
+    // segmento donde la superficie corta el agua (para la elipse nivelada)
+    var seg = [];
+    for (var i = 0; i < quad.length; i++) {
+      var p = quad[i], q = quad[(i + 1) % quad.length];
+      var dp = (A * p.x + B * p.y + C) - S;
+      var dq = (A * q.x + B * q.y + C) - S;
+      if ((dp >= 0) !== (dq >= 0)) {
+        var t = dp / (dp - dq);
+        seg.push({ x: p.x + (q.x - p.x) * t, y: p.y + (q.y - p.y) * t });
+      }
+    }
+    if (seg.length < 2) return null;
+
+    var p1 = seg[0], p2 = seg[1];
+    var len = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+    var mx = (p1.x + p2.x) / 2, my = (p1.y + p2.y) / 2;
+    // la elipse va en el .glass (hermano del agua) para que el recorte no la corte
+    var host = waterEl.parentNode || waterEl;
+    var surf = document.createElement("span");
+    surf.className = "surface";
+    surf.style.left = (mx - len / 2 + (waterEl.offsetLeft || 0)) + "px";
+    surf.style.top = (my + (waterEl.offsetTop || 0)) + "px";
+    surf.style.width = len + "px";
+    surf.style.height = Math.max(6, opts.seg * 0.42) + "px";
+    surf.style.transform = "translateY(-50%) rotate(" + (-opts.deg).toFixed(2) + "deg)";
+    if (opts.surface) surf.style.setProperty("--surface", 'url("sprites/' + opts.surface + '")');
+    host.appendChild(surf);
+    return surf;
+  }
+
+  function untiltLiquid(waterEl) {
+    if (!waterEl) return;
+    waterEl.classList.remove("tilted");
+    waterEl.style.clipPath = "";
+    var host = waterEl.parentNode;
+    if (!host) return;
+    var surf = host.querySelector(".surface");
+    if (surf) host.removeChild(surf);
   }
 
   function transformOffset(el) {
@@ -692,6 +838,7 @@
   // Al inclinar la botella, el líquido cae hacia la boca: todo el stack se
   // corre `shift` celdas y deja el aire en la base.
   function shiftWaterToMouth(water, shift, ms) {
+    shift = Number(shift) || 0;
     if (!shift) return;
     var runs = Array.prototype.slice.call(water.querySelectorAll(".liquid"));
     runs.forEach(function (node) {
@@ -866,6 +1013,7 @@
 
   function finishLevel() {
     game.done = true;
+    game.timeMs = Date.now() - game.startedAt;
     var par = game.par || 20;
     var stars = game.moves <= par ? 3 : game.moves <= Math.round(par * 1.5) ? 2 : 1;
     var reward = game.level.tier >= 5 ? 100 : game.level.tier >= 3 ? 60 : 20;
@@ -876,7 +1024,12 @@
     if (!save.unlimited) save.coins += reward;
     persist();
 
-    $("winSub").textContent = game.moves + " movimientos · par " + par;
+    var bestTime = save.bestTime[key];
+    var isBestTime = !bestTime || game.timeMs < bestTime;
+    if (isBestTime) save.bestTime[key] = game.timeMs;
+    persist();
+    $("winSub").textContent = game.moves + " movimientos · " + fmtTime(game.timeMs) +
+      (isBestTime ? " · ¡mejor tiempo!" : " · mejor " + fmtTime(bestTime)) + " · par " + par;
     $("winCoins").textContent = save.unlimited ? "monedas ∞" : "+" + reward;
     var starEls = $("winStars").children;
     for (var i = 0; i < starEls.length; i++) starEls[i].className = i < stars ? "on" : "";
