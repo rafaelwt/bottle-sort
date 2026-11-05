@@ -95,6 +95,17 @@ colores) y solubilidad de los 4 modos (885 / 399 / 274 / 1346 niveles).
   `height` de `.liquid` al frasco afectado.
 - `touch-action: manipulation` en botellas y botones (sin delay de doble-tap en iOS).
 
+## Layout del tablero
+
+- `segForRows(rows, caps, magicIndex)` calcula el `--seg` con las **filas reales** (`game.rows`), no
+  con las del nivel: al añadir una botella (booster) el tablero se re-acomoda.
+- Modela el layout real del CSS: alto de botella `celdas*seg + 14` (`PAD_TOP`), separación de filas
+  `clamp(16px, 3.4vh, 34px)`, ancho `seg*1.28 + 10`, separación de columnas `clamp(4px, 1.1vw, 14px)`.
+- El espacio disponible se **mide del DOM** (`.stage` menos la línea de pista), no con
+  `innerHeight - 210`: en pantallas angostas el HUD se parte en dos líneas y se comía el tablero.
+- `appendRowCell()` abre fila nueva cuando la actual ya tiene `min(caben a lo ancho, densidad del
+  nivel)`. Usar sólo el ancho provoca un bucle: al encoger el `seg` caben más y vuelve a encoger.
+
 ## Velocidad y animaciones
 
 - `TM(ms)` escala **toda** espera del juego: divide por `save.speed` y devuelve 0 si

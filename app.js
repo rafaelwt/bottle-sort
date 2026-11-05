@@ -358,54 +358,84 @@
     return rows;
   }
 
-  // Tamaño de celda para que el tablero entre en pantalla, sea 4 o 16 celdas de alto.
-  function computeSeg(level, magicIndex) {
-    var maxCap = 1;
-    level.caps.forEach(function (c) { maxCap = Math.max(maxCap, c); });
-    var rows = rowsOfLevel(level);
-    var tallestRow = 0;
-    rows.forEach(function (row) {
-      var h = 0;
-      row.forEach(function (i) { h = Math.max(h, level.caps[i]); });
-      tallestRow = Math.max(tallestRow, h);
-    });
-    var stack = 0;
-    rows.forEach(function (row) {
-      var h = 0;
-      row.forEach(function (i) { h = Math.max(h, level.caps[i]); });
-      stack += h;
-    });
-    var availH = Math.max(220, window.innerHeight - 210);
+  /* Tamaño de celda para que el tablero entre en pantalla.
+   * Modela el layout REAL (valores del CSS):
+   *   alto de botella  = celdas * seg + PAD_TOP
+   *   separación filas = clamp(16px, 3.4vh, 34px)
+   *   ancho de botella = seg * 1.28 + 10
+   *   separación columnas = clamp(4px, 1.1vw, 14px)
+   * Trabaja sobre las filas REALES (game.rows), así al añadir una botella se re-acomoda.
+   */
+  var PAD_TOP = 14;
+
+  function rowGapPx() { return Math.max(16, Math.min(34, window.innerHeight * 0.034)); }
+  function colGapPx() { return Math.max(4, Math.min(14, window.innerWidth * 0.011)); }
+
+  // Cuántas botellas caben en una fila con el tamaño de celda actual
+  function maxBottlesPerRow() {
+    var seg = parseFloat(getComputedStyle(boardEl).getPropertyValue("--seg")) || 40;
     var availW = Math.max(220, Math.min(window.innerWidth - 20, 780));
-    var perRowMax = 1;
-    rows.forEach(function (row) { perRowMax = Math.max(perRowMax, row.length); });
-    // CSS: ancho de botella = seg * 1.28 + 10, separación = clamp(4, 1.1vw, 14)
-    var gap = Math.max(4, Math.min(14, window.innerWidth * 0.011));
-    var slot = (availW - (perRowMax - 1) * gap) / perRowMax;
-    var segByW = (slot - 10) / 1.28;
-    var segByH, seg2W;
-    if (magicIndex >= 0) {
-      // la botella mágica manda en alto; a la derecha van las filas de botellas normales
-      var bigCap = level.caps[magicIndex] || 16;
-      var rowStack = 0;
-      rows.forEach(function (row) {
-        var h = 0;
-        row.forEach(function (i) { if (i !== magicIndex) h = Math.max(h, level.caps[i]); });
-        rowStack += h;
-      });
-      var n = Math.max(1, perRowMax - (rows.some(function (r) { return r.indexOf(magicIndex) >= 0; }) ? 1 : 0));
-      var slotM = (availW - n * gap) / (n + 1);
-      seg2W = (slotM - 10) / 1.28;
-      segByH = Math.min(availH / bigCap, availH / Math.max(rowStack, 1));
-      segByW = Math.min(segByW, seg2W);
+    var gap = colGapPx();
+    var w = seg * 1.28 + 10;
+    return Math.max(1, Math.floor((availW + gap) / (w + gap)));
+  }
+
+  function segForRows(rows, caps, magicIndex) {
+    var cells = 0, perRowMax = 1, nRows = 0;
+    rows.forEach(function (row) {
+      if (!row.length) return;
+      nRows++;
+      var h = 0;
+      row.forEach(function (i) { h = Math.max(h, caps[i] || 4); });
+      cells += h;
+      perRowMax = Math.max(perRowMax, row.length);
+    });
+    if (!nRows) return 44;
+
+    // Medidas REALES del contenedor: en pantallas angostas el HUD se parte en dos
+    // líneas y un `innerHeight - 210` fijo dejaba el tablero debajo del HUD.
+    var availH, availW;
+    var stage = document.querySelector(".stage");
+    if (stage && stage.clientHeight > 120) {
+      var hintH = hintEl ? hintEl.offsetHeight + 12 : 30;
+      availH = Math.max(180, stage.clientHeight - hintH - 14);
+      availW = Math.max(220, Math.min(stage.clientWidth - 20, 780));
     } else {
-      segByH = availH / (stack + (rows.length - 1) * 0.6);
+      availH = Math.max(180, window.innerHeight - 210);
+      availW = Math.max(220, Math.min(window.innerWidth - 20, 780));
     }
+    var rowGap = rowGapPx();
+    var colGap = colGapPx();
+
+    // alto disponible para celdas, descontando padding de botellas y separaciones
+    var cellsBudget = availH - PAD_TOP * nRows - rowGap * (nRows - 1);
+    var segByH = cellsBudget / Math.max(cells, 1);
+
+    if (magicIndex >= 0) {
+      var bigCap = caps[magicIndex] || 16;
+      segByH = Math.min(segByH, (availH - PAD_TOP) / Math.max(bigCap, 1));
+    }
+
+    // ancho: en modo mágico la columna de la botella grande ocupa su propio espacio
+    var columns = perRowMax + (magicIndex >= 0 ? 1 : 0);
+    var slot = (availW - (columns - 1) * colGap) / columns;
+    var segByW = (slot - 10) / 1.28;
+
     var seg = Math.floor(Math.min(segByH, segByW, 46));
     return Math.max(9, Math.min(46, seg || 44));
   }
 
-  /* ---------------- partida ---------------- */
+  function computeSeg(level, magicIndex) {
+    return segForRows(rowsOfLevel(level), level.caps, magicIndex);
+  }
+
+  // Recalcula el tamaño de celda con las filas en pantalla (tras añadir/deshacer botella).
+  function refreshSeg() {
+    var seg = segForRows(game.rows, game.state.caps, game.magicIndex);
+    boardEl.style.setProperty("--seg", seg + "px");
+    return seg;
+  }
+
   function startLevel(index) {
     LEVELS = modeLevels().map(E.normalizeLevel);
     if (!LEVELS.length) { hint("Este modo no tiene niveles."); return; }
@@ -1571,17 +1601,25 @@
     game.state.bottles.push([]);
     game.state.caps = game.state.caps.concat([cap]);
     game.rows = appendRowCell(game.rows, game.state.bottles.length - 1);
-    boardEl.style.setProperty("--seg", computeSeg(game.level, game.magicIndex) + "px");
+    refreshSeg();
     hint("Botella extra añadida.");
     clearStuck();
     render();
     checkStuck();
   }
 
+  // Coloca la botella nueva en la última fila si cabe; si no, abre una fila nueva.
+  // El tope es el menor entre lo que entra a lo ancho y la densidad que ya usa el
+  // nivel: si se usara sólo el ancho, al encogerse el `--seg` cabrían más botellas
+  // en la misma fila y el tablero entraría en un bucle de encogimiento.
   function appendRowCell(rows, index) {
     var copy = rows.map(function (r) { return r.slice(); });
-    var last = copy[copy.length - 1] || [];
-    if (last.length < 7) last.push(index);
+    if (!copy.length) return [[index]];
+    var densa = 1;
+    copy.forEach(function (r) { densa = Math.max(densa, r.length); });
+    var max = Math.max(1, Math.min(maxBottlesPerRow(), densa));
+    var last = copy[copy.length - 1];
+    if (last.length < max) last.push(index);
     else copy.push([index]);
     return copy;
   }
@@ -1735,7 +1773,7 @@
     if (save.sfxOn) sfx("button");
   });
   window.addEventListener("resize", function () {
-    if (game) boardEl.style.setProperty("--seg", computeSeg(game.level, game.magicIndex) + "px");
+    if (game) refreshSeg();
   });
   document.addEventListener("keydown", function (ev) {
     if (ev.key === "Escape" && !settingsSheet.hidden) { settingsSheet.hidden = true; return; }
