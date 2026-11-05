@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Magic Sort — web</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%232c1668'/%3E%3Ccircle cx='32' cy='24' r='9' fill='%23ffcc45'/%3E%3Crect x='21' y='36' width='22' height='20' rx='7' fill='%234fc3f7'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="bg-stars" aria-hidden="true"></div>
+
+<header class="hud">
+  <button class="hud-btn level-btn" id="btnLevels" aria-label="Mapa de niveles">
+    <span class="level-icon" aria-hidden="true">✦</span>
+    <span id="levelLabel">1</span>
+  </button>
+  <div class="hud-mid">
+    <div class="stat"><span class="stat-k">Movimientos</span><span class="stat-v" id="movesLabel">0</span></div>
+  </div>
+  <div class="hud-right">
+    <div class="coins" title="Monedas"><span aria-hidden="true">🪙</span><span id="coinsLabel">1000</span></div>
+    <button class="hud-btn sound-btn" id="btnSound" aria-label="Sonido">🔊</button>
+  </div>
+</header>
+
+<main class="stage">
+  <div class="board" id="board" role="group" aria-label="Botellas"></div>
+  <div class="hint-line" id="hintLine">Toca una botella y luego otra para verter.</div>
+</main>
+
+<footer class="boosters">
+  <button class="booster" id="btnUndo" data-booster="undo">
+    <span class="booster-ico">↺</span><span class="booster-name">Deshacer</span><span class="booster-count" data-count="undo">3</span>
+  </button>
+  <button class="booster" id="btnShuffle" data-booster="shuffle">
+    <span class="booster-ico">⇄</span><span class="booster-name">Mezclar</span><span class="booster-count" data-count="shuffle">3</span>
+  </button>
+  <button class="booster" id="btnExtra" data-booster="extra">
+    <span class="booster-ico">🍶</span><span class="booster-name">Botella</span><span class="booster-count" data-count="extra">3</span>
+  </button>
+  <button class="booster" id="btnReveal" data-booster="reveal">
+    <span class="booster-ico">👁</span><span class="booster-name">Revelar</span><span class="booster-count" data-count="reveal">3</span>
+  </button>
+  <button class="booster" id="btnRestart" data-booster="restart">
+    <span class="booster-ico">⟳</span><span class="booster-name">Reiniciar</span>
+  </button>
+</footer>
+
+<!-- Victoria -->
+<div class="overlay" id="winOverlay" hidden>
+  <div class="card win-card">
+    <div class="win-title">¡Nivel completado!</div>
+    <div class="stars" id="winStars"><span>★</span><span>★</span><span>★</span></div>
+    <div class="win-sub" id="winSub">12 movimientos</div>
+    <div class="win-reward"><span aria-hidden="true">🪙</span><span id="winCoins">+20</span></div>
+    <button class="primary" id="btnNext">Siguiente nivel</button>
+  </div>
+</div>
+
+<!-- Mapa de niveles -->
+<div class="overlay" id="levelsOverlay" hidden>
+  <div class="card levels-card">
+    <div class="mode-tabs" id="modeTabs"></div>
+    <div class="levels-head">
+      <h2>Niveles</h2>
+      <button class="ghost" id="btnCloseLevels">Cerrar</button>
+    </div>
+    <div class="levels-grid" id="levelsGrid"></div>
+  </div>
+</div>
+
+<script src="engine.js"></script>
+<script src="data/levels.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
