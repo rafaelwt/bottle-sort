@@ -462,12 +462,20 @@
       revealed: false,
       rows: rows,
       par: computePar(level),
+      hiddenCount: 0,
       startedAt: Date.now(),
       accMs: 0,
       clockRunning: true,
       timeMs: 0,
       stuck: false
     };
+    // cuántas botellas tienen el agua tapada (para habilitar/deshabilitar Revelar)
+    var ocultas = 0;
+    for (var bi = 0; bi < game.state.bottles.length; bi++) {
+      if (E.isHidden(game.state, bi)) ocultas++;
+    }
+    game.hiddenCount = ocultas;
+
     boardEl.style.setProperty("--seg", computeSeg(level, magicIndex) + "px");
     winOverlay.hidden = true;
     if (onStuckOverlay) onStuckOverlay.hidden = true;
@@ -603,6 +611,7 @@
     el.style.setProperty("--cap", String(cap));
     el.setAttribute("aria-label", "Botella " + (index + 1) + ", " + bottle.length + " de " + cap);
     if (index === game.magicIndex) el.classList.add("magic");
+    if (game.revealed) el.classList.add("revealed");
     if (game.selected === index) el.classList.add("selected");
     if (E.isComplete(st, index)) {
       el.classList.add("complete");
@@ -1407,7 +1416,12 @@
         }
       }
       if (kind === "undo") btn.disabled = !game || game.history.length === 0 || game.busy;
-      else if (kind === "reveal") btn.disabled = !game || game.revealed || game.busy;
+      else if (kind === "reveal") {
+        var nada = !game || game.revealed || game.busy || !game.hiddenCount;
+        btn.disabled = nada;
+        btn.title = (!game || game.revealed) ? ""
+          : (!game.hiddenCount ? "Este nivel no tiene nada oculto" : "Revela el contenido tapado por cortinas y yeso");
+      }
       else btn.disabled = !game || game.busy || game.done;
     });
   }
@@ -1626,6 +1640,7 @@
 
   function doReveal() {
     if (!game || game.revealed || game.busy) return;
+    if (!game.hiddenCount) { hint("Este nivel no tiene nada oculto."); return; }
     if (!spendBooster("reveal")) return;
     game.revealed = true;
     hint("Contenidos revelados por este nivel.");

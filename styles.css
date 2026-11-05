@@ -416,6 +416,12 @@ body.flat-water .liquid { background-image: none; }
   border: 2px solid #ffc4ec;
   overflow: hidden;
 }
+/* Revelar: la cortina y el yeso se vuelven translúcidos para dejar ver el agua
+   (en el juego el revelador atraviesa el bloqueador, no lo destruye). */
+.bottle.revealed .blocker.curtain { opacity: .22; }
+.bottle.revealed .blocker.plaster { opacity: .3; }
+.bottle.revealed .blocker.curtain::after { opacity: .4; }
+
 .blocker.curtain::before {
   content: "";
   position: absolute;

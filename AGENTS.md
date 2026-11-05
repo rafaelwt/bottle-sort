@@ -95,6 +95,17 @@ colores) y solubilidad de los 4 modos (885 / 399 / 274 / 1346 niveles).
   `height` de `.liquid` al frasco afectado.
 - `touch-action: manipulation` en botellas y botones (sin delay de doble-tap en iOS).
 
+## Revelar
+
+- El agua tapada se dibuja con `.liquid.hidden-fill`; `bottleHidden()` depende de
+  `game.revealed` y de `E.isHidden()` (bloqueadores `curtain`/`plaster`).
+- La cortina es un overlay **opaco** (`.blocker.curtain`, z-index 5): quitar sólo el
+  `hidden-fill` no se ve, porque la cortina sigue tapando. Por eso al revelar la botella recibe
+  `.revealed` y el bloqueador baja a `opacity .22-.3` (en el juego el revelador atraviesa el
+  bloqueador, no lo destruye).
+- `game.hiddenCount` se calcula en `startLevel()`; el botón se deshabilita si es 0 (modo diarias
+  nunca tiene nada oculto) y `doReveal()` no gasta el uso en ese caso.
+
 ## Layout del tablero
 
 - `segForRows(rows, caps, magicIndex)` calcula el `--seg` con las **filas reales** (`game.rows`), no

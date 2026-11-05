@@ -52,7 +52,7 @@ y las monedas se guardan en `localStorage`.
 | **Deshacer** | revierte el último vertido (historial real) |
 | **Mezclar** | rearma el tablero: parte de una disposición canónica resuelta y la desarma moviendo una unidad por vez; cada paso es reversible con un vertido legal, así que el resultado **siempre tiene solución** |
 | **Botella** | añade una botella vacía |
-| **Revelar** | muestra el contenido oculto por cortinas y cintas |
+| **Revelar** | vuelve translúcidas las cortinas y el yeso para ver el agua que tapan. Sólo se habilita en niveles que tienen algo oculto |
 
 Las monedas y los usos son ilimitados (modo exploración). La barra de estrellas usa un objetivo
 calculado por nivel: óptimo por BFS cuando el espacio de estados lo permite; si no, una cota del
