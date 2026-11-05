@@ -126,9 +126,10 @@ body {
 }
 
 .bottle {
+  --pad-top: 14px;
   position: relative;
   width: calc(var(--seg, 44px) * 1.28 + 10px);
-  padding: 14px 0 0;
+  padding: var(--pad-top) 0 0;
   background: none;
   border: 0;
   cursor: pointer;
@@ -136,7 +137,8 @@ body {
   transition: transform .18s cubic-bezier(.34, 1.4, .64, 1);
   will-change: transform;
 }
-.bottle:focus-visible { outline: 3px solid #ffd76a; outline-offset: 4px; border-radius: 18px; }
+.bottle:focus { outline: none; }
+.bottle:focus-visible { outline: none; }
 
 .bottle .neck {
   position: absolute;
@@ -170,20 +172,12 @@ body {
   position: absolute;
   left: 0;
   right: 0;
-  bottom: calc(var(--i) * var(--liquid-seg, var(--seg, 44px)));
-  height: var(--liquid-seg, var(--seg, 44px));
+  bottom: calc(var(--i, 0) * var(--liquid-seg, var(--seg, 44px)));
+  height: calc(var(--n, 1) * var(--liquid-seg, var(--seg, 44px)));
   background: var(--c);
-  box-shadow: inset 0 6px 10px -6px #ffffff55, inset 0 -4px 8px -6px #00000066;
 }
 
-.liquid.top::before {
-  content: "";
-  position: absolute;
-  inset: 0 0 auto 0;
-  height: 18%;
-  background: #ffffff44;
-  border-radius: 40% 40% 0 0;
-}
+.liquid.flow { transition: height var(--pour-ms, 520ms) linear, bottom var(--pour-ms, 520ms) linear; }
 
 .liquid.enter { animation: fill-in .26s ease-out both; }
 @keyframes fill-in {
@@ -197,11 +191,9 @@ body {
     linear-gradient(180deg, #6a5a8c, #40325f);
 }
 
+/* el juego no dibuja borde ni halo: la botella solo se eleva */
 .bottle.selected { transform: translateY(-16px); z-index: 4; }
-.bottle.selected .glass {
-  box-shadow: 0 0 0 3px #ffd76a66, 0 0 24px #ffcc4566, 0 12px 26px -10px #000000cc;
-}
-.bottle.selected .frame { filter: drop-shadow(0 0 6px #ffd76aaa); }
+.bottle.selected .glass { box-shadow: 0 12px 26px -10px #000000cc; }
 
 .bottle.pouring { z-index: 6; }
 .bottle.pouring .glass,
@@ -487,10 +479,12 @@ body {
 /* ---- vertido fluido: chorro, drenaje, squash del frasco ---- */
 .stream {
   position: absolute;
-  width: 4px;
-  margin-left: -2px;
-  border-radius: 3px;
-  background: var(--stream-color, #4fc3f7);
+  width: var(--stream-w, 8px);
+  margin-left: calc(var(--stream-w, 8px) / -2);
+  background-color: var(--stream-color, #4fc3f7);
+  background-image: linear-gradient(90deg, #ffffff66 0%, #ffffff00 55%);
+  -webkit-mask: url("sprites/stream.png") center / 100% 100% no-repeat;
+  mask: url("sprites/stream.png") center / 100% 100% no-repeat;
   filter: drop-shadow(0 0 4px var(--stream-color, #4fc3f7));
   transform-origin: top center;
   pointer-events: none;
@@ -522,9 +516,9 @@ body {
 
 .bottle.just-complete .glass { animation: complete-pulse .6s ease-out; }
 @keyframes complete-pulse {
-  0% { box-shadow: 0 0 0 0 #59f0a8cc, 0 0 18px #59f0a877; }
-  60% { box-shadow: 0 0 0 12px #59f0a800, 0 0 26px #59f0a866; }
-  100% { box-shadow: 0 0 0 0 #59f0a800; }
+  0% { box-shadow: 0 0 0 0 var(--glow, #59f0a8), 0 0 18px var(--glow, #59f0a8); }
+  60% { box-shadow: 0 0 0 12px transparent, 0 0 26px var(--glow, #59f0a8); opacity: .75; }
+  100% { box-shadow: 0 0 0 0 transparent; }
 }
 
 /* ---- sprites originales: vidrio, superficie de agua y corcho ---- */
@@ -557,18 +551,19 @@ body {
   position: absolute;
   left: -6%;
   right: -6%;
-  top: -9%;
-  height: 30%;
+  top: calc(var(--liquid-seg, 44px) * -0.11);
+  height: calc(var(--liquid-seg, 44px) * 0.42);
   background: var(--surface, none) center bottom / 100% 100% no-repeat;
 }
 
 .bottle .cork {
   position: absolute;
   left: 50%;
-  top: 0;
-  width: calc(var(--seg, 44px) * 0.66);
-  height: calc(var(--seg, 44px) * 0.30);
-  transform: translate(-50%, -88%) scale(.6);
+  top: var(--pad-top, 14px);
+  /* ancho del cuello del sprite bottle_front (57,6% del frasco) y aspecto del corcho 29x16 */
+  width: calc((var(--seg, 44px) * 1.28 + 10px) * 0.55);
+  height: calc((var(--seg, 44px) * 1.28 + 10px) * 0.55 * 0.5517);
+  transform: translate(-50%, -82%) scale(.6);
   transform-origin: bottom center;
   background: url("sprites/cork.png") center / 100% 100% no-repeat;
   filter: drop-shadow(0 2px 3px #000000aa);
@@ -577,44 +572,49 @@ body {
   z-index: 7;
   transition: opacity .18s ease-out, transform .22s cubic-bezier(.34, 1.5, .64, 1);
 }
-.bottle.complete .cork { opacity: 1; transform: translate(-50%, -88%) scale(1); }
+.bottle.complete .cork { opacity: 1; transform: translate(-50%, -82%) scale(1); }
+/* halo del tapón: solo arriba, en el color del agua (StopperGlowColor) */
 .bottle.complete .glass::before {
   content: "";
   position: absolute;
-  inset: -10% -14%;
-  background: url("sprites/glow.png") center / 100% 100% no-repeat;
-  opacity: .38;
+  left: 50%;
+  top: -34%;
+  width: 170%;
+  height: 62%;
+  transform: translateX(-50%);
+  background: radial-gradient(closest-side, var(--glow, #59f0a8) 0%, transparent 72%);
+  opacity: .30;
   pointer-events: none;
   z-index: 5;
 }
 
-/* impacto: salpicadura y gotas (sprites originales usados como máscara) */
+/* impacto: ondulación y gotas (sprites originales usados como máscara) */
 .splash, .droplet {
   position: absolute;
   pointer-events: none;
   z-index: 7;
   background: var(--splash-color, #4fc3f7);
-  -webkit-mask: url("sprites/splash2.png") center / 100% 100% no-repeat;
-  mask: url("sprites/splash2.png") center / 100% 100% no-repeat;
 }
 .splash {
-  width: 18px;
-  height: 18px;
-  margin: -9px 0 0 -9px;
+  width: 34px;
+  height: 13px;
+  margin: -6.5px 0 0 -17px;
+  -webkit-mask: url("sprites/splash.png") center / 100% 100% no-repeat;
+  mask: url("sprites/splash.png") center / 100% 100% no-repeat;
   animation: splash-out .34s ease-out forwards;
 }
 @keyframes splash-out {
-  0% { transform: scale(.45); opacity: .95; }
-  70% { transform: scale(1.35); opacity: .55; }
-  100% { transform: scale(1.6); opacity: 0; }
+  0% { transform: scale(.55); opacity: .9; }
+  70% { transform: scale(1.15); opacity: .5; }
+  100% { transform: scale(1.35); opacity: 0; }
 }
 
 .droplet {
   width: 7px;
   height: 7px;
   margin: -3.5px 0 0 -3.5px;
-  -webkit-mask-image: url("sprites/drop.png");
-  mask-image: url("sprites/drop.png");
+  -webkit-mask: url("sprites/drop.png") center / 100% 100% no-repeat;
+  mask: url("sprites/drop.png") center / 100% 100% no-repeat;
   animation: droplet-fly .42s cubic-bezier(.2, .7, .4, 1) forwards;
 }
 @keyframes droplet-fly {

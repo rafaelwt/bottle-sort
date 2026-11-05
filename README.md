@@ -27,6 +27,9 @@ el nivel.
 **Bloqueadores**: la cortina y la cinta ocultan el contenido de una botella; la etiqueta la marca.
 No impiden verter: se destruyen al completar botellas (la cinta, al completar una botella vecina).
 
+La selección se cancela sola: si tocas un destino que no corresponde (otro color o sin espacio),
+la botella vuelve a su sitio, igual que en el juego original.
+
 ## Modos
 
 | Modo | Niveles | Capacidad |
@@ -61,7 +64,7 @@ engine.js             reglas puras (UMD: navegador y Node)
 app.js                bucle de juego, DOM, audio, animaciones
 data/catalog.json     catálogo por modo (fuente canónica)
 data/levels.js        el mismo catálogo como script (permite file://)
-sounds/               efectos (vertido, corcho, victoria, bloqueadores, UI)
+sounds/               efectos + música de partida (gameplay_music.ogg|mp3)
 sprites/              vidrio de botella, superficies de agua, corcho
 test/engine.test.cjs  12 tests
 ```
@@ -92,17 +95,28 @@ El frasco se dibuja en capas:
 2. `.frame` — el vidrio delantero (`sprites/bottle_front.png`) como `border-image`: mantiene el
    cuello y el fondo redondeado a cualquier altura de botella.
 3. `sprites/surface-<color>.png` — la elipse de superficie en el tope de cada líquido.
-4. `.cork` + `sprites/glow.png` — tapón y brillo cuando la botella queda completa.
+4. `.cork` — tapón apoyado en la boca y halo del color del agua (`--glow`, `StopperGlowColor`).
 
 El contenedor de agua arranca debajo del cuello (`top: calc(var(--seg) * 0.52)`), por eso el
 líquido nunca aparece en la boca de la botella.
 
+El agua va **de color plano** (sin degradados por tramo): el color es el `Color` de cada
+`ColorConfig` del juego y la profundidad la aportan la elipse y el vidrio. La paleta completa está
+en `docs/logic/palette.md`.
+
 ## Animación y audio
 
-El vertido se hace en cuatro tiempos: la botella se eleva y se traslada **encima del destino**,
-se inclina 52°, cae un chorro del color vertido hasta la superficie y el frasco destino se llena
-**unidad por unidad** (55–110 ms según cantidad) con un *squash* de 1.07/0.93 → 0.97/1.04 → 1.
-El origen se vacía en sincronía; al completarse una botella suena el corcho y aparece el tapón.
+El vertido sigue la secuencia del original: la botella **se eleva** en su sitio (90 ms), **se
+traslada** sobre la boca del destino (210 ms), **se inclina** y recién entonces cae el agua
+(~130 ms + 520 ms de chorro), llenando el destino **unidad por unidad** con un *squash* de
+1.07/0.95 → 0.97/1.04 → 1. El origen se vacía en sincronía; al completarse una botella suena el
+corcho y aparece el tapón en la boca.
+
+El ángulo de inclinación no es fijo: sale de `_rotationsByHeights` del juego (35° con el destino
+casi lleno, 105° con mucho espacio). Los valores están en `docs/logic/palette.md`.
+
+La música (`sounds/gameplay_music.*`, `MagicSort_Gameplay_Final`) suena en bucle desde el primer
+toque y se apaga con el botón de sonido.
 
 El sonido del vertido depende de la cantidad (`1` a `8` unidades tienen clip propio).
 Todo se reproduce con elementos `Audio` clonados para tolerar solapamientos y funcionar desde
@@ -117,5 +131,6 @@ Todo se reproduce con elementos `Audio` clonados para tolerar solapamientos y fu
 ## Material de referencia
 
 En `docs/` está el material de referencia para pulir esta versión: 5 743 sprites, 108 clips de
-audio, el índice de 329 animaciones y la documentación de las clases, enums, formato de nivel y
-mapas de animación/audio.
+audio, el índice de 329 animaciones y la documentación de las clases, enums, formato de nivel,
+mapas de animación/audio y —en `docs/logic/palette.md` + `configs.json`— la paleta exacta y los
+valores de animación del juego (tiempos, curvas y tabla de rotación).

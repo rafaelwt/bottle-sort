@@ -11,7 +11,7 @@ engine.js           reglas puras (UMD: navegador y Node)
 app.js              bucle de juego, DOM, audio, animación
 data/catalog.json   catálogo de niveles por modo (fuente canónica)
 data/levels.js      mismo catálogo como script (permite abrir con file://)
-sounds/*.ogg|mp3    efectos de sonido
+sounds/*.ogg|mp3    efectos de sonido + música de partida
 sprites/*.png       vidrio de botella, superficies de agua, corcho
 test/engine.test.cjs  node --test
 ```
@@ -54,7 +54,10 @@ colores) y solubilidad de los 4 modos (885 / 399 / 274 / 1346 niveles).
   máscara (`sprites/mask.png` es el cuerpo del frasco, recortado del sprite del frasco).
 - El vidrio delantero es `.frame` con `border-image` de `sprites/bottle_front.png`; va **encima**
   del agua (z-index 6).
-- Al completar una botella se agrega `.complete`, que muestra `.cork` y el brillo `glow.png`.
+- Al completar una botella se agrega `.complete`, que muestra `.cork` (apoyado en la boca:
+  `top: var(--pad-top)` con `translate(-50%, -82%)`) y el halo `--glow` del color del agua.
+- El agua es **plana** (`--c` = `ColorConfig.Color`). No agregar degradados por tramo: un
+  `rgba(0,0,0,.22)` al pie de cada banda hacía que las uniones de color parecieran un degradado.
 
 ## Convenciones
 
@@ -63,5 +66,9 @@ colores) y solubilidad de los 4 modos (885 / 399 / 274 / 1346 niveles).
   funcione desde `file://`.
 - La animación de vertido es incremental (`addUnits`/`drainUnits`), nunca un re-render completo:
   si se re-renderiza, se pierde la fluidez.
+- La selección no dibuja borde ni halo (el juego no lo hace): `.selected` solo eleva la botella.
+- Un destino inválido **deselecciona** (`Selection.Deselect` del original): no dejar la botella
+  elevada esperando otro toque.
+- El ángulo de vertido sale de `_rotationsByHeights` (celdas libres → grados), no de una constante.
 - Al agregar un modo: exportarlo en `data/catalog.json` + `levels.js`, y añadir su test de
   solubilidad. `loadMode()` toma las claves del catálogo.
