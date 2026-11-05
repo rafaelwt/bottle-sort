@@ -478,7 +478,8 @@ body.flat-water .liquid { background-image: none; }
   display: flex;
   justify-content: center;
   gap: 8px;
-  padding: 8px 10px 14px;
+  /* deja libre la barra de gestos del iPhone (y cualquier overlay inferior) */
+  padding: 8px 10px max(14px, env(safe-area-inset-bottom, 14px));
   flex-wrap: wrap;
 }
 
