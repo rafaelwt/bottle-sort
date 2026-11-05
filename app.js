@@ -174,7 +174,11 @@
     } catch (err) { /* sin Audio */ }
     return ".mp3";
   })();
+  // Pool de audio: cada sonido reutiliza hasta POOL_MAX elementos terminados en
+  // vez de clonar uno nuevo por reproducción. Crear HTMLAudioElement a mogollón
+  // (4-6 por segundo en juego rápido) atasca el audio de Safari en iOS.
   var sfxCache = {};
+  var POOL_MAX = 6;
 
   function sfx(name) {
     if (!save.sfxOn) return;
@@ -182,10 +186,22 @@
     if (!file) return;
     var url = "sounds/" + file + audioExt;
     try {
-      var base = sfxCache[url];
-      if (!base) { base = new Audio(url); base.preload = "auto"; sfxCache[url] = base; }
-      var node = base.cloneNode();
+      var entry = sfxCache[url];
+      if (!entry) {
+        entry = sfxCache[url] = { base: new Audio(url), pool: [] };
+        entry.base.preload = "auto";
+      }
+      var node = entry.pool.pop();
+      if (!node) {
+        node = entry.base.cloneNode();
+        node.addEventListener("ended", function () {
+          // volver al pool sólo si no hay excedente
+          var e = sfxCache[url];
+          if (e && e.pool.length < POOL_MAX) e.pool.push(node);
+        });
+      }
       node.volume = name.indexOf("pour") === 0 ? 0.5 : 0.65;
+      node.currentTime = 0;
       var p = node.play();
       if (p && p.catch) p.catch(function () {});
     } catch (err) { /* audio bloqueado: seguimos sin sonido */ }
@@ -564,6 +580,22 @@
     return el;
   }
 
+  // Selección SIN re-render: la botella ya existe, sólo cambia la clase.
+  // (Antes cada click reconstruía el tablero entero: en móviles eso saturaba
+  // el main thread al tocar rápido.)
+  function setSelected(index) {
+    var prev = game.selected;
+    game.selected = index;
+    if (prev !== null && prev !== index) {
+      var prevEl = boardEl.querySelector('[data-index="' + prev + '"]');
+      if (prevEl) prevEl.classList.remove("selected");
+    }
+    if (index !== null) {
+      var el = boardEl.querySelector('[data-index="' + index + '"]');
+      if (el) el.classList.add("selected");
+    }
+  }
+
   function onBottleClick(index) {
     if (!game || game.busy || game.done || game.stuck) return;
     var st = game.state;
@@ -574,18 +606,16 @@
         sfx("bubble");
         return;
       }
-      game.selected = index;
       var top = E.topColor(st.bottles[index]);
+      setSelected(index);
       hint("Seleccionada: " + (COLOR_NAMES[top] || "color " + top) + ". Elige el destino.");
-      render();
       return;
     }
 
     if (game.selected === index) {
-      game.selected = null;
+      setSelected(null);
       sfx("place");
       hint("Selección cancelada.");
-      render();
       return;
     }
 
@@ -595,8 +625,7 @@
       // (Selection.TryCancel -> Deselect): la botella vuelve a su sitio.
       var why = !st.bottles[index].length || E.topColor(st.bottles[index]) !== E.topColor(st.bottles[game.selected])
         ? "Ese color no coincide." : "Esa botella está llena.";
-      game.selected = null;
-      render();
+      setSelected(null);
       sfx("place");
       hint(why + " Selección cancelada.");
       return;
@@ -1049,7 +1078,7 @@
 
       if (node.animate) {
         var frames = [];
-        var steps = 24;
+        var steps = 16;
         for (var k = 0; k <= steps; k++) {
           var t = k / steps;
           var ang = a0 + t * Math.PI * 2 * turns;
@@ -1521,29 +1550,37 @@
       btn.className = "mode-tab" + (mode === save.mode ? " active" : "");
       btn.textContent = CATALOG[mode].label;
       btn.addEventListener("click", function () {
-        levelsOverlay.hidden = true;
+        closeLevels();
         loadMode(mode, 0);
       });
       modeTabs.appendChild(btn);
     });
   }
 
+  // Grid con DELEGACIÓN: un solo listener en el contenedor (antes: 885-1346
+  // listeners, uno por celda) y construcción en un DocumentFragment. Al cerrar
+  // el overlay se vacía el grid: antes los ~1 800 nodos quedaban en el DOM para
+  // siempre aunque el mapa estuviera oculto.
+  function closeLevels() {
+    levelsOverlay.hidden = true;
+    $("levelsGrid").textContent = "";
+  }
+
   function buildLevelsGrid() {
     var grid = $("levelsGrid");
     grid.textContent = "";
+    var frag = document.createDocumentFragment();
     LEVELS.forEach(function (level, i) {
       var cell = document.createElement("button");
       cell.type = "button";
       cell.className = "level-cell";
       cell.textContent = String(i + 1);
+      cell.dataset.i = String(i);
       if (save.stars[save.mode + ":" + i]) cell.classList.add("done");
-      if (i === game.index) cell.classList.add("current");
-      cell.addEventListener("click", function () {
-        levelsOverlay.hidden = true;
-        startLevel(i);
-      });
-      grid.appendChild(cell);
+      if (game && i === game.index) cell.classList.add("current");
+      frag.appendChild(cell);
     });
+    grid.appendChild(frag);
   }
 
   /* ---------------- eventos ---------------- */
@@ -1573,9 +1610,15 @@
     buildLevelsGrid();
     levelsOverlay.hidden = false;
   });
-  $("btnCloseLevels").addEventListener("click", function () { levelsOverlay.hidden = true; });
+  $("btnCloseLevels").addEventListener("click", closeLevels);
   levelsOverlay.addEventListener("click", function (ev) {
-    if (ev.target === levelsOverlay) levelsOverlay.hidden = true;
+    if (ev.target === levelsOverlay) closeLevels();
+  });
+  $("levelsGrid").addEventListener("click", function (ev) {
+    var cell = ev.target.closest(".level-cell");
+    if (!cell) return;
+    closeLevels();
+    startLevel(Number(cell.dataset.i));
   });
   var settingsSheet = $("settingsSheet");
 

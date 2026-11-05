@@ -78,6 +78,23 @@ colores) y solubilidad de los 4 modos (885 / 399 / 274 / 1346 niveles).
 - Nada de three.js: el agua del original son sprites 2D (`WaterView`), no mallas. Ver
   `docs/logic/palette.md`; `lab/three-water.html` es sólo la comparación.
 
+## Rendimiento (no romper: medido en iPhone/Safari)
+
+- **Selección sin re-render**: `setSelected()` sólo togglear la clase `.selected`. NUNCA llamar
+  `render()` desde un click de selección/deselección/destino inválido: en móviles reconstruir el
+  tablero por click satura el main thread (era la causa del lenteo al tocar rápido).
+- **Mapa de niveles**: delegación (1 listener en `#levelsGrid`, `dataset.i`) + `DocumentFragment`,
+  y `closeLevels()` VACÍA el grid al cerrar. Antes 885-1346 celdas con su listener quedaban en el
+  DOM para siempre con el overlay oculto.
+- **Nada de `filter`/`clip-path` en elementos animados**: iOS WebKit los rasteriza en CPU cada
+  frame. Los destellos del fondo usan `background-image` del sprite + animación de
+  transform/opacity con `will-change`; el chorro, la gota y las estrellas van sin filter.
+- **Audio con pool** (`sfx()`): reutiliza hasta 6 clones por sonido; crear un `HTMLAudioElement`
+  por reproducción atasca el audio de Safari.
+- `contain: layout style` en `.bottle` y `.glass` acota los reflows de las transiciones de
+  `height` de `.liquid` al frasco afectado.
+- `touch-action: manipulation` en botellas y botones (sin delay de doble-tap en iOS).
+
 ## Convenciones
 
 - JS sin módulos ES ni bundler: `engine.js` usa UMD para servir tanto al `<script>` como a Node.

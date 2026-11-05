@@ -59,14 +59,16 @@ body {
 
 /* destellos de 4 puntas, como en el fondo del juego */
 .bg-sparkles { position: fixed; inset: 0; pointer-events: none; z-index: 0; }
+/* destellos: sprite de estrella como background (rasteriza UNA vez) y animación
+   sólo de transform/opacity (compositor). Sin clip-path ni filter: en iOS esos
+   dos forzaban rasterizado en CPU en cada frame, para siempre. */
 .bg-sparkles span {
   position: absolute;
-  background: #ffffff;
-  clip-path: polygon(50% 0%, 58% 42%, 100% 50%, 58% 58%, 50% 100%, 42% 58%, 0% 50%, 42% 42%);
+  background: url("sprites/star.png") center / 100% 100% no-repeat;
   opacity: 0;
+  will-change: transform, opacity;
   animation: sparkle-twinkle var(--dur, 9s) ease-in-out infinite;
   animation-delay: var(--delay, 0s);
-  filter: drop-shadow(0 0 4px #cbb6ffaa);
 }
 @keyframes sparkle-twinkle {
   0%, 100% { opacity: 0; transform: scale(.5) rotate(0deg); }
@@ -246,6 +248,7 @@ body {
 .bottle {
   --pad-top: 14px;
   position: relative;
+  contain: layout style;
   width: calc(var(--seg, 44px) * 1.28 + 10px);
   padding: var(--pad-top) 0 0;
   background: none;
@@ -254,6 +257,7 @@ body {
   transform-origin: 50% 88%;
   transition: transform .18s cubic-bezier(.34, 1.4, .64, 1);
   will-change: transform;
+  touch-action: manipulation;   /* sin delay de doble-tap en iOS */
 }
 .bottle:focus { outline: none; }
 .bottle:focus-visible { outline: none; }
@@ -274,6 +278,7 @@ body {
 .glass {
   display: block;
   position: relative;
+  contain: layout style;
   height: calc(var(--cap, 4) * var(--seg, 44px));
   border: 0;
   border-radius: 12px 12px 30px 30px;
@@ -615,7 +620,7 @@ body.flat-water .liquid { background-image: none; }
 .bottle.magic .glass {
   box-shadow: 0 0 26px 2px #8b5cf64d, 0 6px 14px -8px #00000088;
 }
-.bottle.magic .frame { filter: drop-shadow(0 0 5px #a06bff66) saturate(1.08); }
+.bottle.magic .frame { /* sin filter: el glow ya lo da el box-shadow del .glass */ }
 .bottle.magic.complete .glass {
   box-shadow: 0 0 26px 2px #8b5cf64d, 0 6px 14px -8px #00000088;
 }
@@ -629,7 +634,6 @@ body.flat-water .liquid { background-image: none; }
   background-image: linear-gradient(90deg, #ffffff66 0%, #ffffff00 55%);
   -webkit-mask: url("sprites/stream.png") center / 100% 100% no-repeat;
   mask: url("sprites/stream.png") center / 100% 100% no-repeat;
-  filter: drop-shadow(0 0 4px var(--stream-color, #4fc3f7));
   transform-origin: top center;
   pointer-events: none;
   z-index: 6;
@@ -745,7 +749,6 @@ body.flat-water .liquid { background-image: none; }
   background: var(--star-color, #fff);
   -webkit-mask: url("sprites/star.png") center / 100% 100% no-repeat;
   mask: url("sprites/star.png") center / 100% 100% no-repeat;
-  filter: drop-shadow(0 0 8px var(--star-color, #fff)) brightness(1.2);
   pointer-events: none;
   z-index: 9;
   opacity: 0;
@@ -792,18 +795,18 @@ body.flat-water .liquid { background-image: none; }
   background: var(--blob-color, #4fc3f7);
   -webkit-mask: var(--drop) center / 100% 100% no-repeat;
   mask: var(--drop) center / 100% 100% no-repeat;
-  filter: drop-shadow(0 2px 4px #00000055);
+  will-change: transform;
 }
+/* brillo (_glossSpriteRenderer): sin blur, es un elipse suave a mano */
 .blob::after {
   content: "";
   position: absolute;
-  left: 22%;
-  top: 46%;
-  width: 26%;
-  height: 22%;
+  left: 20%;
+  top: 44%;
+  width: 30%;
+  height: 24%;
   border-radius: 50%;
-  background: #ffffff9e;
-  filter: blur(1px);
+  background: radial-gradient(closest-side, #ffffffd6 0%, #ffffff70 55%, transparent 75%);
 }
 
 /* impacto: ondulación y gotas (sprites originales usados como máscara) */
