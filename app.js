@@ -88,7 +88,8 @@
       stars: {},
       best: {},
       bestTime: {},
-      sound: true
+      sfxOn: true,
+      musicOn: true
     };
   }
 
@@ -98,6 +99,10 @@
       if (!raw) return defaultSave();
       var data = JSON.parse(raw);
       var base = defaultSave();
+      if (typeof data.sound === "boolean") {   // guardado anterior: un solo interruptor
+        base.sfxOn = data.sound;
+        base.musicOn = data.sound;
+      }
       return Object.assign(base, data, {
         boosters: Object.assign(base.boosters, data.boosters || {}),
         levelsByMode: Object.assign(base.levelsByMode, data.levelsByMode || {})
@@ -164,7 +169,7 @@
   var sfxCache = {};
 
   function sfx(name) {
-    if (!save.sound) return;
+    if (!save.sfxOn) return;
     var file = SFX_FILES[name];
     if (!file) return;
     var url = "sounds/" + file + audioExt;
@@ -185,7 +190,7 @@
   var MUSIC_VOLUME = 0.30;
 
   function startMusic() {
-    if (!save.sound) return;
+    if (!save.musicOn) return;
     if (!music) {
       music = new Audio("sounds/gameplay_music" + audioExt);
       music.loop = true;
@@ -202,7 +207,7 @@
   }
 
   function syncMusic() {
-    if (save.sound) startMusic(); else stopMusic();
+    if (save.musicOn) startMusic(); else stopMusic();
   }
 
   /* ---------------- utilidades ---------------- */
@@ -1233,25 +1238,66 @@
   levelsOverlay.addEventListener("click", function (ev) {
     if (ev.target === levelsOverlay) levelsOverlay.hidden = true;
   });
-  $("btnSound").addEventListener("click", function () {
-    save.sound = !save.sound;
-    persist();
-    this.textContent = save.sound ? "🔊" : "🔇";
-    syncMusic();
+  var settingsSheet = $("settingsSheet");
+
+  function syncAudioUi() {
+    $("btnSfx").setAttribute("aria-pressed", save.sfxOn ? "true" : "false");
+    $("btnMusic").setAttribute("aria-pressed", save.musicOn ? "true" : "false");
+    $("sfxState").textContent = save.sfxOn ? "Activado" : "Silenciado";
+    $("musicState").textContent = save.musicOn ? "Activada" : "Silenciada";
+  }
+
+  $("btnSettings").addEventListener("click", function () {
+    settingsSheet.hidden = false;
+  });
+  $("btnCloseSettings").addEventListener("click", function () { settingsSheet.hidden = true; });
+  settingsSheet.addEventListener("click", function (ev) {
+    if (ev.target === settingsSheet) settingsSheet.hidden = true;
+  });
+  $("btnSfx").addEventListener("click", function () {
+    save.sfxOn = !save.sfxOn;
+    persist(); syncAudioUi();
+    if (save.sfxOn) sfx("button");
+  });
+  $("btnMusic").addEventListener("click", function () {
+    save.musicOn = !save.musicOn;
+    persist(); syncAudioUi(); syncMusic();
+    if (save.sfxOn) sfx("button");
   });
   window.addEventListener("resize", function () {
     if (game) boardEl.style.setProperty("--seg", computeSeg(game.level, game.magicIndex) + "px");
   });
   document.addEventListener("keydown", function (ev) {
+    if (ev.key === "Escape" && !settingsSheet.hidden) { settingsSheet.hidden = true; return; }
     if (ev.key === "z" && (ev.ctrlKey || ev.metaKey)) { ev.preventDefault(); doUndo(); }
     if (ev.key === "r" && !ev.ctrlKey && !ev.metaKey) doRestart();
   });
+
+  // destellos de 4 puntas repartidos por el fondo
+  (function buildSparkles() {
+    var host = document.getElementById("bgSparkles");
+    if (!host) return;
+    var count = 14;
+    for (var i = 0; i < count; i++) {
+      var sp = document.createElement("span");
+      var size = 5 + Math.random() * 11;
+      sp.style.width = size + "px";
+      sp.style.height = size + "px";
+      sp.style.left = (Math.random() * 96 + 2).toFixed(2) + "%";
+      sp.style.top = (Math.random() * 88 + 4).toFixed(2) + "%";
+      sp.style.setProperty("--dur", (7 + Math.random() * 8).toFixed(2) + "s");
+      sp.style.setProperty("--delay", (-Math.random() * 12).toFixed(2) + "s");
+      sp.style.setProperty("--peak", (0.45 + Math.random() * 0.45).toFixed(2));
+      if (Math.random() < 0.4) sp.style.background = "#cdbcff";
+      host.appendChild(sp);
+    }
+  })();
 
   // ?flat deja el agua en color plano (para comparar)
   if (/[?&]flat\b/.test(location.search)) document.body.classList.add("flat-water");
 
   /* ---------------- arranque ---------------- */
-  $("btnSound").textContent = save.sound ? "🔊" : "🔇";
+  syncAudioUi();
   document.addEventListener("pointerdown", function once() {
     document.removeEventListener("pointerdown", once);
     startMusic();

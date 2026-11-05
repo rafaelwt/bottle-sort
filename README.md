@@ -125,7 +125,12 @@ Con ángulos chicos (destino casi lleno) el agua queda apoyada en la base; pasan
 corre hacia la boca.
 
 La música (`sounds/gameplay_music.*`, `MagicSort_Gameplay_Final`) suena en bucle desde el primer
-toque y se apaga con el botón de sonido.
+toque. El botón de **ajustes** (engranaje, arriba a la derecha) abre un panel con dos
+interruptores independientes, como en el juego: **Sonido** (efectos) y **Música**. Cada uno
+guarda su estado en `localStorage`.
+
+El fondo tiene el campo de estrellas y destellos de 4 puntas que titilan (respetan
+`prefers-reduced-motion`).
 
 El HUD muestra **tiempo** del nivel: cuenta para arriba y se detiene al ganar. No hay límite: es
 solo para saber cuánto tardaste. El mejor tiempo de cada nivel se guarda en `localStorage`.

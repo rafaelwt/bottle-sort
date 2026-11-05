@@ -39,14 +39,44 @@ body {
   position: fixed;
   inset: 0;
   pointer-events: none;
+  z-index: 0;
   background-image:
     radial-gradient(1.5px 1.5px at 12% 18%, #ffffffaa 50%, transparent 51%),
     radial-gradient(1.5px 1.5px at 78% 12%, #ffffff77 50%, transparent 51%),
     radial-gradient(2px 2px at 46% 8%, #ffffff88 50%, transparent 51%),
     radial-gradient(1.5px 1.5px at 88% 42%, #ffffff66 50%, transparent 51%),
     radial-gradient(1.5px 1.5px at 22% 66%, #ffffff55 50%, transparent 51%),
-    radial-gradient(2px 2px at 66% 78%, #ffffff66 50%, transparent 51%);
+    radial-gradient(2px 2px at 66% 78%, #ffffff66 50%, transparent 51%),
+    radial-gradient(1.5px 1.5px at 34% 88%, #ffffff55 50%, transparent 51%),
+    radial-gradient(1.5px 1.5px at 92% 74%, #ffffff44 50%, transparent 51%);
   opacity: .55;
+  animation: stars-breathe 7s ease-in-out infinite;
+}
+@keyframes stars-breathe {
+  0%, 100% { opacity: .42; }
+  50% { opacity: .68; }
+}
+
+/* destellos de 4 puntas, como en el fondo del juego */
+.bg-sparkles { position: fixed; inset: 0; pointer-events: none; z-index: 0; }
+.bg-sparkles span {
+  position: absolute;
+  background: #ffffff;
+  clip-path: polygon(50% 0%, 58% 42%, 100% 50%, 58% 58%, 50% 100%, 42% 58%, 0% 50%, 42% 42%);
+  opacity: 0;
+  animation: sparkle-twinkle var(--dur, 9s) ease-in-out infinite;
+  animation-delay: var(--delay, 0s);
+  filter: drop-shadow(0 0 4px #cbb6ffaa);
+}
+@keyframes sparkle-twinkle {
+  0%, 100% { opacity: 0; transform: scale(.5) rotate(0deg); }
+  45% { opacity: var(--peak, .75); transform: scale(1) rotate(12deg); }
+  70% { opacity: 0; transform: scale(.6) rotate(24deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bg-stars, .bg-sparkles span { animation: none; }
+  .bg-sparkles span { opacity: .5; }
 }
 
 /* ---------------- HUD ---------------- */
@@ -63,6 +93,8 @@ body {
 .stat { justify-content: center; min-width: 0; }
 .hud { gap: 6px; padding: 10px 10px 4px; }
 .hud-right { display: flex; align-items: center; gap: 8px; }
+.gear-btn { padding: 7px 9px; }
+.gear-btn svg { width: 20px; height: 20px; fill: currentColor; display: block; }
 
 .hud-btn {
   display: inline-flex;
@@ -95,6 +127,79 @@ body {
   background: rgba(0, 0, 0, .28);
   border: 2px solid rgba(255, 255, 255, .18);
 }
+
+/* ---------------- ajustes (sonido / música) ---------------- */
+.sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(12, 5, 32, .62);
+  backdrop-filter: blur(2px);
+}
+.sheet[hidden] { display: none; }
+.sheet-card {
+  display: grid;
+  gap: 10px;
+  width: min(320px, calc(100vw - 40px));
+  padding: 18px 16px 16px;
+  border-radius: 22px;
+  background: linear-gradient(180deg, #3a1d84, #241052);
+  border: 2px solid #ffffff2e;
+  box-shadow: 0 20px 50px -18px #000000cc, inset 0 1px 0 #ffffff44;
+  animation: pop .22s ease-out both;
+}
+.sheet-title { font-size: 17px; font-weight: 900; color: var(--gold); text-align: center; }
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 16px;
+  background: #ffffff14;
+  color: #fff;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background .15s, transform .12s;
+}
+.toggle:active { transform: translateY(1px); }
+.toggle-ico {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  border-radius: 13px;
+  background: linear-gradient(180deg, #6ee06a, #35a52f);
+  box-shadow: inset 0 2px 0 #ffffff66, 0 3px 0 #1d6b19;
+}
+.toggle-ico svg { width: 24px; height: 24px; fill: #fdfbe8; filter: drop-shadow(0 1px 0 #1d6b1999); }
+.toggle-ico .slash {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  top: 50%;
+  height: 3px;
+  border-radius: 3px;
+  background: #fdfbe8;
+  transform: rotate(-45deg);
+  box-shadow: 0 1px 0 #1d6b19;
+  display: none;
+}
+.toggle[aria-pressed="false"] .toggle-ico {
+  background: linear-gradient(180deg, #6b6480, #423a55);
+  box-shadow: inset 0 2px 0 #ffffff33, 0 3px 0 #241d33;
+}
+.toggle[aria-pressed="false"] .slash { display: block; }
+.toggle[aria-pressed="false"] .toggle-txt b { color: #bdb4d6; }
+.toggle-txt { display: grid; gap: 2px; }
+.toggle-txt b { font-size: 15px; }
+.toggle-txt small { font-size: 12px; color: #cbb6ff; }
 
 /* ---------------- tablero ---------------- */
 .stage {
