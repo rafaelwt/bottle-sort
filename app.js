@@ -1,10 +1,9 @@
 /*
- * Magic Sort web — UI y bucle de juego.
+ * Bottle Sort — UI y bucle de juego.
  *
- * Fuentes de la lógica y los datos (ver README):
  *  - Reglas: water-sort con capacidad POR BOTELLA (4 clásico, 12/16 botellas largas).
- *  - Niveles: 3 613 TextAssets de com.grandgames.magicsort 0.0.3420 en 4 modos.
- *  - Economía/boosters: modelos RemoteConfig del mismo APK.
+ *  - Niveles: 3 613 tableros en 4 modos.
+ *  - Paleta, tiempos de animación y sonidos: valores del juego original.
  *
  * Monedas ilimitadas por defecto (modo exploración).
  */
@@ -14,7 +13,7 @@
   var E = window.MagicSortEngine;
   var CATALOG = window.MAGIC_SORT_CATALOG || {};
 
-  // Paleta exacta del juego: ColorConfig.Color de cada ColorId (assets del APK).
+  // Paleta exacta: ColorConfig.Color de cada ColorId.
   var COLORS = {
     "-1": "#04010d",
     0: "#0198d8", 1: "#1616bf", 2: "#e45900", 3: "#70a502", 4: "#0b3c01",
@@ -39,7 +38,7 @@
     19: "#ff45cd", 20: "#00ce95", 21: "#7f34b7", 22: "#c5b75c"
   };
 
-  // Color de las estrellas al completar (ColorConfig.ParticleWinColor del APK).
+  // Color de las estrellas al completar (ColorConfig.ParticleWinColor).
   var STARS = {
     0: "#1a97e8", 1: "#2899db", 2: "#de752c", 3: "#5de21a", 4: "#61d925",
     5: "#4253e9", 6: "#d535a2", 7: "#d5533a", 8: "#deaf23", 9: "#9b3fd7",
@@ -47,7 +46,7 @@
     19: "#d72c89", 20: "#56c0a3", 21: "#9d54f4", 22: "#95906d"
   };
 
-  // Brillo del tapón al completar (ColorConfig.StopperGlowColor del APK).
+  // Brillo del tapón al completar (ColorConfig.StopperGlowColor).
   var GLOWS = {
     0: "#0198d8", 1: "#1616bf", 2: "#e45900", 3: "#70a502", 4: "#0b3c01",
     5: "#5d64a6", 6: "#6b0052", 7: "#70322b", 8: "#fcc006", 9: "#5f1e8e",
@@ -62,7 +61,7 @@
     21: "lavanda", 22: "beige"
   };
 
-  // Economía leída de los modelos RemoteConfig del APK.
+  // Economía del juego (modelos RemoteConfig).
   var ECO = {
     initialCoins: 1000,
     initialBoosters: { undo: 3, shuffle: 3, extra: 3, reveal: 3 },
@@ -159,7 +158,7 @@
 
   var game = null;
 
-  /* ---------------- audio: clips originales del APK (sounds/*.ogg|mp3) ---------------- */
+  /* ---------------- audio: clips originales (sounds/*.ogg|mp3) ---------------- */
   var SFX_FILES = {
     select: "bottle_up", place: "bottle_down", complete: "green_check", win: "win_screen",
     button: "button", cork: "bottle_cork", curtain: "curtain", clay: "clay_break_v2", bubble: "bubble",
@@ -167,7 +166,7 @@
     pour1: "p_short_1", pour2: "p_short_2", pour3: "p_short_3", pour4: "p_short_4", pour5: "p_short_5",
     pour6: "n_short_6", pour7: "n_short_7", pour8: "n_short_8"
   };
-  // SoundType del APK: PourShort1..5 (1-5 unidades), n_short_6..8 (6-8).
+  // SoundType: PourShort1..5 (1-5 unidades), n_short_6..8 (6-8).
   var audioExt = (function () {
     try {
       var probe = document.createElement("audio");
@@ -1151,8 +1150,9 @@
     var seg = parseFloat(getComputedStyle(boardEl).getPropertyValue("--seg")) || 44;
     var cap = parseInt(toEl.style.getPropertyValue("--cap")) || 4;
     var lseg = seg * (1 - 0.52 / cap);
-    var w = Math.max(10, seg * 0.52);
-    var h = w * 1.05;
+    // BlobXYSizeForHeight: 2.3 x 2.5 unidades; el frasco mide ~2.1 de ancho
+    var w = Math.max(14, seg * 1.02);
+    var h = w * (2.5 / 2.3);
     var yEnd = glass.offsetHeight - unitIndex * lseg;   // superficie del nivel nuevo
 
     var blob = document.createElement("span");
@@ -1164,14 +1164,16 @@
     blob.style.setProperty("--blob-color", color);
     glass.appendChild(blob);
 
-    var fall = 210;
+    var fall = 165;   // _BlobMoveToBottomMinMaxDuration max
     if (blob.animate) {
       blob.animate([
-        { transform: "translate(-50%, 0) scale(.5, .7)", opacity: 0 },
-        { transform: "translate(-50%, " + (yEnd * 0.22) + "px) scale(.9, 1.12)", opacity: 1, offset: .28 },
-        { transform: "translate(-50%, " + (yEnd * 0.94) + "px) scale(1, 1.15)", opacity: 1, offset: .92 },
-        { transform: "translate(-50%, " + (yEnd - h * 0.3) + "px) scale(1.65, .35)", opacity: .9 }
-      ], { duration: fall, easing: "cubic-bezier(.45,0,.9,1)", fill: "forwards" });
+        { transform: "translate(-50%, " + (-h * 0.5) + "px) scale(.78)", opacity: 0 },
+        { transform: "translate(-50%, " + (-h * 0.2) + "px) scale(.9, 1.02)", opacity: 1, offset: .12 },
+        { transform: "translate(-50%, " + (yEnd * 0.72) + "px) scale(.94, 1.1)", opacity: 1, offset: .78 },
+        // impacto: se aplasta (BlobScaleCurve) y se absorbe (BlobEndSize 1.85x2.0)
+        { transform: "translate(-50%, " + (yEnd - h * 0.34) + "px) scale(1.55, .5)", opacity: .95, offset: .93 },
+        { transform: "translate(-50%, " + (yEnd - h * 0.10) + "px) scale(.8)", opacity: 0 }
+      ], { duration: fall + 90, easing: "linear", fill: "forwards" });
     }
     setTimeout(function () { if (blob.parentNode) blob.parentNode.removeChild(blob); }, fall + 120);
   }

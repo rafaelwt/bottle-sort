@@ -780,18 +780,30 @@ body.flat-water .liquid { background-image: none; }
   z-index: 5;
 }
 
-/* gota que cae al llenar (el "blob" del juego) */
+/* Gota que cae al llenar. Forma del "blob" del juego (BlobView): panza redonda
+   abajo y punta suave arriba, proporción 2.3 x 2.5 (BlobXYSizeForHeight), con el
+   brillo que en el APK es el segundo SpriteRenderer (`_glossSpriteRenderer`). */
 .blob {
   position: absolute;
-  border-radius: 50% 50% 46% 46% / 62% 62% 38% 38%;
-  background:
-    radial-gradient(45% 35% at 38% 28%, #ffffffb0 0%, transparent 60%),
-    var(--blob-color, #4fc3f7);
-  box-shadow: inset -2px -3px 6px -2px #00000055;
-  filter: drop-shadow(0 2px 4px #00000066);
   pointer-events: none;
-  z-index: 8;
-  transform: translate(-50%, -50%);
+  z-index: 2;
+  transform: translate(-50%, 0);
+  --drop: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 52'%3E%3Cpath d='M24 1.5c0 0-17.5 16.2-17.5 29.3a17.5 17.5 0 0 0 35 0C41.5 17.7 24 1.5 24 1.5Z'/%3E%3C/svg%3E");
+  background: var(--blob-color, #4fc3f7);
+  -webkit-mask: var(--drop) center / 100% 100% no-repeat;
+  mask: var(--drop) center / 100% 100% no-repeat;
+  filter: drop-shadow(0 2px 4px #00000055);
+}
+.blob::after {
+  content: "";
+  position: absolute;
+  left: 22%;
+  top: 46%;
+  width: 26%;
+  height: 22%;
+  border-radius: 50%;
+  background: #ffffff9e;
+  filter: blur(1px);
 }
 
 /* impacto: ondulación y gotas (sprites originales usados como máscara) */

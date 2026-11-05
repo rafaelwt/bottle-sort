@@ -1,1 +1,10 @@
-docs
+# material de referencia pesado (no se publica)
+docs/
+
+# experimentos locales
+lab/
+.playwright-cli/
+
+# sistema
+.DS_Store
+Thumbs.db

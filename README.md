@@ -1,7 +1,7 @@
-# Magic Sort — versión web
+# Bottle Sort
 
 Juego de ordenar líquidos por color, jugable en el navegador. Sin dependencias, sin build y sin
-backend: se abre el `index.html` y listo.
+backend: se abre el `index.html` y listo. Listo para publicar en Netlify (ver [Deploy](#deploy)).
 
 ```bash
 xdg-open index.html                                   # doble clic
@@ -166,3 +166,15 @@ En `docs/` está el material de referencia para pulir esta versión: 5 743 sprit
 audio, el índice de 329 animaciones y la documentación de las clases, enums, formato de nivel,
 mapas de animación/audio y —en `docs/logic/palette.md` + `configs.json`— la paleta exacta y los
 valores de animación del juego (tiempos, curvas y tabla de rotación).
+
+## Deploy
+
+Sitio 100% estático, sin build. En Netlify:
+
+1. **New site from Git** → elegir este repo.
+2. Build command: *(vacío)*. Publish directory: `.`
+3. Deploy.
+
+`netlify.toml` ya deja el `publish`, las cabeceras de cache (assets con `max-age` largo, JS y
+niveles con revalidación) y `X-Content-Type-Options`. También funciona con arrastrar la carpeta a
+Netlify Drop o con `npx netlify-cli deploy --prod --dir .`

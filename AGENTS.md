@@ -1,4 +1,4 @@
-# AGENTS.md — Magic Sort (web)
+# AGENTS.md — Bottle Sort
 
 Notas para quien trabaje en este proyecto. Sin dependencias externas, sin build.
 
@@ -95,6 +95,9 @@ colores) y solubilidad de los 4 modos (885 / 399 / 274 / 1346 niveles).
   `z-index: 0` y `pointer-events: none`; no las subas de capa.
 - La animación de vertido es incremental (`addUnits`/`drainUnits`), nunca un re-render completo:
   si se re-renderiza, se pierde la fluidez.
+- La gota (`.blob`) usa la forma del juego: máscara SVG de gota (panza abajo, punta arriba) y
+  proporción 2.3x2.5 de `BlobAnimationConfig.BlobXYSizeForHeight`; brillo en `::after`. Vive dentro
+  del `.glass` (z-index 2, bajo el `.frame`) para que el vidrio la recorte.
 - Llenado del frasco (valores de `BottleFillAnimationConfig`): por CADA unidad, una gota
   (`.blob`, dentro del `.glass` para que el vidrio la recorte) cae 210 ms y el nivel sube con
   overshoot (`RISE_MS` 280 ms, `cubic-bezier(.34,1.56,.64,1)`), se asienta en 50 ms. No volver a

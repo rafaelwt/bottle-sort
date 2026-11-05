@@ -1,0 +1,45 @@
+# Bottle Sort — sitio estático, sin build.
+# Netlify: conectar el repo y listo (publica la raíz del proyecto).
+
+[build]
+  publish = "."
+  command = "echo 'sin build: HTML/CSS/JS estático'"
+
+# El juego se sirve desde un único index.html
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+
+# assets estáticos: se cachean fuerte (llevan hash o cambian poco)
+[[headers]]
+  for = "/sounds/*"
+  [headers.values]
+    Cache-Control = "public, max-age=604800"
+
+[[headers]]
+  for = "/sprites/*"
+  [headers.values]
+    Cache-Control = "public, max-age=604800"
+
+# código y niveles: revalidar siempre para no servir versiones viejas
+[[headers]]
+  for = "/app.js"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/engine.js"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/styles.css"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/data/*"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
