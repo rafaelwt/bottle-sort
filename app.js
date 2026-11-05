@@ -735,15 +735,19 @@
       }
       fillWater(toWater, to, amount, color, startLevel, pourMs);
       drainWater(fromWater, amount, pourMs);
-      var stream = showStream(toEl, colorCss, startLevel, amount, pourMs);
+      var stream = showStream(toEl, colorCss, startLevel, amount, pourMs, hover + seg * 0.2);
       sfxPour(amount);
       squish(toEl);
 
       for (var u = 0; u < amount; u++) {
         (function (unit) {
+          var at = Math.round((unit + 1) * unitMs);
+          setTimeout(function () {
+            dropBlob(toEl, startLevel + unit + 1, colorCss);
+          }, Math.max(0, at - 140));
           setTimeout(function () {
             splashAtUnit(toEl, startLevel + unit + 1, colorCss);
-          }, Math.round((unit + 1) * unitMs));
+          }, at);
         })(u);
       }
 
@@ -893,7 +897,15 @@
   // El destino crece como un solo nivel continuo. Si el color entrante coincide
   // con el tramo superior, se estira ese mismo tramo; si no, se crea uno nuevo
   // desde altura 0 para que la superficie suba desde la boca hasta el nivel final.
-  function fillWater(water, index, amount, color, startLevel, pourMs) {
+  /* El juego no estira el nivel de una vez: por cada unidad que entra, el agua
+   * SUBE 0.28 s con overshoot (_moveUpCurve + _moveUpOffset 0.5) y se asienta en
+   * 0.05 s (_moveDownDuration). Antes de subir cae una gota (blob) desde la boca
+   * hasta la superficie.
+   */
+  var RISE_MS = 280;      // _moveUpDuration
+  var SETTLE_MS = 50;     // _moveDownDuration
+
+  function fillWater(water, index, amount, color, startLevel, approachMs) {
     var top = water.querySelector(".liquid:last-child");
     var oldTop = startLevel > 0 ? game.state.bottles[index][startLevel - 1] : null;
     var node;
@@ -906,15 +918,26 @@
       if (top) top.classList.remove("top");
       if (bottleHidden(index)) node.classList.add("hidden-fill");
       water.appendChild(node);
-      void node.offsetHeight;   // fija el estado inicial (altura 0) antes de animar
+      void node.offsetHeight;   // estado inicial en altura 0 antes de animar
     }
-    node.style.setProperty("--pour-ms", pourMs + "ms");
     node.classList.add("flow");
-    node.style.setProperty("--n", String(base + amount));
+    node.style.setProperty("--pour-ms", RISE_MS + "ms");
+    node.style.setProperty("--settle-ms", SETTLE_MS + "ms");
+
+    // una subida por unidad, escalonadas como el chorro
+    var unitMs = Math.max(60, Math.round(approachMs / Math.max(1, amount)));
+    for (var u = 1; u <= amount; u++) {
+      (function (k, delay) {
+        setTimeout(function () {
+          node.classList.add("rising");
+          node.style.setProperty("--n", String(base + k));
+          setTimeout(function () { node.classList.remove("rising"); }, RISE_MS);
+        }, delay);
+      })(u, Math.round(u * unitMs));
+    }
+    return node;
   }
 
-  // Al inclinar la botella, el líquido cae hacia la boca: todo el stack se
-  // corre `shift` celdas y deja el aire en la base.
   function shiftWaterToMouth(water, shift, ms) {
     shift = Number(shift) || 0;
     if (!shift) return;
@@ -1080,7 +1103,7 @@
 
   // Chorro pegado a la boca: nace en el borde del destino y su punta baja
   // hasta la superficie, que sube en sincronía con la transición del nivel.
-  function showStream(toEl, color, startLevel, amount, pourMs) {
+  function showStream(toEl, color, startLevel, amount, pourMs, fromLift) {
     var boardRect = boardEl.getBoundingClientRect();
     var t = toEl.getBoundingClientRect();
     var seg = parseFloat(getComputedStyle(boardEl).getPropertyValue("--seg")) || 44;
@@ -1090,7 +1113,8 @@
     var glassTop = t.top - boardRect.top + padTop;
     var glassBottom = t.top - boardRect.top + t.height;
     var x = t.left - boardRect.left + t.width / 2;
-    var width = Math.max(5, Math.round(seg * 0.20));
+    var width = Math.max(6, Math.round(seg * 0.22));
+    var top = Math.max(0, glassTop - (fromLift || 0));
 
     function surfaceY(level) {
       return glassBottom - level * lseg;
@@ -1099,16 +1123,16 @@
     var node = document.createElement("span");
     node.className = "stream";
     node.style.left = x + "px";
-    node.style.top = glassTop + "px";
+    node.style.top = top + "px";
     node.style.setProperty("--stream-w", width + "px");
     node.style.setProperty("--stream-color", color);
-    node.style.height = Math.max(2, surfaceY(startLevel) - glassTop) + "px";
+    node.style.height = Math.max(2, surfaceY(startLevel) - top) + "px";
     boardEl.appendChild(node);
 
     var start = performance.now();
     function tick(now) {
       var p = Math.min(1, (now - start) / Math.max(1, pourMs));
-      var h = Math.max(2, surfaceY(startLevel + amount * p) - glassTop);
+      var h = Math.max(2, surfaceY(startLevel + amount * p) - top);
       node.style.height = h + "px";
       if (p < 1) requestAnimationFrame(tick);
     }
@@ -1117,6 +1141,41 @@
   }
 
   // una salpicadura y tres gotas por cada unidad que cae en el frasco
+  /* Gota que cae dentro del frasco desde la boca hasta la superficie (el "blob" del
+   * juego: WaterItem/ItemPartType.Blob, BlobMoveInsideBottleAnimation). Se estira al
+   * caer y se aplasta al tocar el agua. Vive en el .glass para que el vidrio la recorte. */
+  function dropBlob(toEl, unitIndex, color) {
+    if (!toEl) return;
+    var glass = toEl.querySelector(".glass");
+    if (!glass) return;
+    var seg = parseFloat(getComputedStyle(boardEl).getPropertyValue("--seg")) || 44;
+    var cap = parseInt(toEl.style.getPropertyValue("--cap")) || 4;
+    var lseg = seg * (1 - 0.52 / cap);
+    var w = Math.max(10, seg * 0.52);
+    var h = w * 1.05;
+    var yEnd = glass.offsetHeight - unitIndex * lseg;   // superficie del nivel nuevo
+
+    var blob = document.createElement("span");
+    blob.className = "blob";
+    blob.style.width = w + "px";
+    blob.style.height = h + "px";
+    blob.style.left = (glass.offsetWidth / 2) + "px";
+    blob.style.top = (-h * 0.6) + "px";
+    blob.style.setProperty("--blob-color", color);
+    glass.appendChild(blob);
+
+    var fall = 210;
+    if (blob.animate) {
+      blob.animate([
+        { transform: "translate(-50%, 0) scale(.5, .7)", opacity: 0 },
+        { transform: "translate(-50%, " + (yEnd * 0.22) + "px) scale(.9, 1.12)", opacity: 1, offset: .28 },
+        { transform: "translate(-50%, " + (yEnd * 0.94) + "px) scale(1, 1.15)", opacity: 1, offset: .92 },
+        { transform: "translate(-50%, " + (yEnd - h * 0.3) + "px) scale(1.65, .35)", opacity: .9 }
+      ], { duration: fall, easing: "cubic-bezier(.45,0,.9,1)", fill: "forwards" });
+    }
+    setTimeout(function () { if (blob.parentNode) blob.parentNode.removeChild(blob); }, fall + 120);
+  }
+
   function splashAtUnit(toEl, unitIndex, color) {
     if (!toEl) return;
     var board = boardEl.getBoundingClientRect();

@@ -302,7 +302,17 @@ body {
 /* comparación: agua totalmente plana */
 body.flat-water .liquid { background-image: none; }
 
-.liquid.flow { transition: height var(--pour-ms, 520ms) linear, bottom var(--pour-ms, 520ms) linear; }
+.liquid.flow { transition: height var(--pour-ms, 280ms) linear, bottom var(--pour-ms, 520ms) linear; }
+/* subida con overshoot (BottleFillAnimationConfig._moveUpCurve) */
+.liquid.rising { transition: height var(--pour-ms, 280ms) cubic-bezier(.34, 1.56, .64, 1), bottom 520ms linear; }
+.liquid.rising::after {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: #ffffff55;
+  opacity: .9;
+}
 
 .liquid.enter { animation: fill-in .26s ease-out both; }
 @keyframes fill-in {
@@ -768,6 +778,20 @@ body.flat-water .liquid { background-image: none; }
   opacity: .30;
   pointer-events: none;
   z-index: 5;
+}
+
+/* gota que cae al llenar (el "blob" del juego) */
+.blob {
+  position: absolute;
+  border-radius: 50% 50% 46% 46% / 62% 62% 38% 38%;
+  background:
+    radial-gradient(45% 35% at 38% 28%, #ffffffb0 0%, transparent 60%),
+    var(--blob-color, #4fc3f7);
+  box-shadow: inset -2px -3px 6px -2px #00000055;
+  filter: drop-shadow(0 2px 4px #00000066);
+  pointer-events: none;
+  z-index: 8;
+  transform: translate(-50%, -50%);
 }
 
 /* impacto: ondulación y gotas (sprites originales usados como máscara) */

@@ -95,6 +95,10 @@ colores) y solubilidad de los 4 modos (885 / 399 / 274 / 1346 niveles).
   `z-index: 0` y `pointer-events: none`; no las subas de capa.
 - La animación de vertido es incremental (`addUnits`/`drainUnits`), nunca un re-render completo:
   si se re-renderiza, se pierde la fluidez.
+- Llenado del frasco (valores de `BottleFillAnimationConfig`): por CADA unidad, una gota
+  (`.blob`, dentro del `.glass` para que el vidrio la recorte) cae 210 ms y el nivel sube con
+  overshoot (`RISE_MS` 280 ms, `cubic-bezier(.34,1.56,.64,1)`), se asienta en 50 ms. No volver a
+  animar el tramo entero de una sola vez: se pierde el efecto de líquido.
 - Al inclinar, el agua se recorta con un plano horizontal (`tiltLiquid`): el clipping va en
   `.water` (coordenadas locales) y la elipse de superficie se dibuja aparte en `.glass`
   (`.surface`), porque el `clip-path` de `.water` la cortaría al medio. Si se toca la geometría
