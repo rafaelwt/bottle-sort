@@ -115,10 +115,18 @@ colores) y solubilidad de los 4 modos (885 / 399 / 274 / 1346 niveles).
 - La gota (`.blob`) usa la forma del juego: máscara SVG de gota (panza abajo, punta arriba) y
   proporción 2.3x2.5 de `BlobAnimationConfig.BlobXYSizeForHeight`; brillo en `::after`. Vive dentro
   del `.glass` (z-index 2, bajo el `.frame`) para que el vidrio la recorte.
-- Llenado del frasco (valores de `BottleFillAnimationConfig`): por CADA unidad, una gota
-  (`.blob`, dentro del `.glass` para que el vidrio la recorte) cae 210 ms y el nivel sube con
-  overshoot (`RISE_MS` 280 ms, `cubic-bezier(.34,1.56,.64,1)`), se asienta en 50 ms. No volver a
-  animar el tramo entero de una sola vez: se pierde el efecto de líquido.
+- **Llenado del frasco: UNA sola subida por vertido**, no una por unidad (animar por unidad da
+  escalones y se ve antinatural). `RISE_MS` = 280 ms (`_moveUpDuration`) con
+  `cubic-bezier(.25,1.15,.5,1)` (overshoot de `_moveUpCurve` + `_moveUpOffset`). `riseProgress()`
+  reproduce la curva real (0 → 0.721 en t=0.312 → 1) para calcular dónde está la superficie en
+  cada instante (lo usa la gota para saber dónde caer).
+- La **gota** (`.blob`) va dentro del `.glass` (el vidrio la recorta), es pequeña (~0.62 celda,
+  NO los 2.3 u de `BlobXYSizeForHeight`, que son del blob de selección), va **corrida a un lado
+  del chorro** (`left: 62%`) y pintada con `FrontColor`: del mismo color que el agua sería
+  invisible. El chorro también lleva `--stream-light` = `FrontColor`.
+- La superficie levanta una **onda** al entrar el agua (`EclipseAnimationConfig`:
+  `aboveWaveHeight` 0.035 → 0 en 0.3 s, `speed` 150) y se amortigua: clases `.rising` (0-280 ms)
+  y `.settling` (+320 ms).
 - Al inclinar, el agua se recorta con un plano horizontal (`tiltLiquid`): el clipping va en
   `.water` (coordenadas locales) y la elipse de superficie se dibuja aparte en `.glass`
   (`.surface`), porque el `clip-path` de `.water` la cortaría al medio. Si se toca la geometría

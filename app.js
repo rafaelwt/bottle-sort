@@ -761,20 +761,26 @@
         game.busy = false;
         return;
       }
-      fillWater(toWater, to, amount, color, startLevel, pourMs);
+      // la gota y el chorro van en FrontColor (capa clara del agua): del mismo
+      // color que el líquido serían invisibles al caer por dentro del frasco.
+      var dropColor = FRONTS[color] || colorCss;
+      var finalLevel = startLevel + amount;
+
+      fillWater(toWater, to, amount, color, startLevel);
       drainWater(fromWater, amount, pourMs);
-      var stream = showStream(toEl, colorCss, startLevel, amount, pourMs, hover + seg * 0.2);
+      var stream = showStream(toEl, colorCss, startLevel, amount, pourMs, hover + seg * 0.2, dropColor);
       sfxPour(amount);
       squish(toEl);
-
       for (var u = 0; u < amount; u++) {
         (function (unit) {
           var at = Math.round((unit + 1) * unitMs);
+          // nivel del agua en el momento del impacto, sobre _moveUpCurve
+          var lvlThen = startLevel + amount * riseProgress(Math.min(1, (at + 40) / RISE_MS));
           setTimeout(function () {
-            dropBlob(toEl, startLevel + unit + 1, colorCss);
-          }, Math.max(0, at - 140));
+            dropBlob(toEl, lvlThen, finalLevel, dropColor);
+          }, Math.max(0, at - 150));
           setTimeout(function () {
-            splashAtUnit(toEl, startLevel + unit + 1, colorCss);
+            splashAtUnit(toEl, Math.max(startLevel, lvlThen), dropColor);
           }, at);
         })(u);
       }
@@ -931,9 +937,30 @@
    * hasta la superficie.
    */
   var RISE_MS = 280;      // _moveUpDuration
-  var SETTLE_MS = 50;     // _moveDownDuration
 
-  function fillWater(water, index, amount, color, startLevel, approachMs) {
+  /* El agua NO sube a saltos: hace UNA sola subida por vertido, con la curva del
+   * juego (`BottleFillAnimationConfig._moveUpCurve`: 0 -> 0.72 en el 31 % del
+   * tiempo -> 1, con overshoot de `_moveUpOffset`) durante `_moveUpDuration`
+   * (0.28 s). Mientras sube, la superficie levanta una onda
+   * (`EclipseAnimationConfig`: altura 0.035 -> 0 en `transitionStartDuration`
+   * 0.3 s, recorriendo a `speed` 150) que se amortigua al llegar.
+   */
+  // _moveUpCurve del juego: (0,0) (0.312,0.721) (1,1), con tramos suavizados
+  var RISE_CURVE = [[0, 0], [0.312, 0.721], [1, 1]];
+  function riseProgress(t) {
+    t = Math.max(0, Math.min(1, t));
+    for (var i = 1; i < RISE_CURVE.length; i++) {
+      var a = RISE_CURVE[i - 1], b = RISE_CURVE[i];
+      if (t <= b[0]) {
+        var u = (t - a[0]) / (b[0] - a[0] || 1);
+        u = u * u * (3 - 2 * u);              // smoothstep: entra y sale suave
+        return a[1] + (b[1] - a[1]) * u;
+      }
+    }
+    return 1;
+  }
+
+  function fillWater(water, index, amount, color, startLevel) {
     var top = water.querySelector(".liquid:last-child");
     var oldTop = startLevel > 0 ? game.state.bottles[index][startLevel - 1] : null;
     var node;
@@ -948,22 +975,17 @@
       water.appendChild(node);
       void node.offsetHeight;   // estado inicial en altura 0 antes de animar
     }
-    node.classList.add("flow");
-    node.style.setProperty("--pour-ms", RISE_MS + "ms");
-    node.style.setProperty("--settle-ms", SETTLE_MS + "ms");
 
-    // una subida por unidad, escalonadas como el chorro
-    var unitMs = Math.max(60, Math.round(approachMs / Math.max(1, amount)));
-    for (var u = 1; u <= amount; u++) {
-      (function (k, delay) {
-        setTimeout(function () {
-          node.classList.add("rising");
-          node.style.setProperty("--n", String(base + k));
-          setTimeout(function () { node.classList.remove("rising"); }, RISE_MS);
-        }, delay);
-      })(u, Math.round(u * unitMs));
-    }
-    return node;
+    node.style.setProperty("--pour-ms", RISE_MS + "ms");
+    node.classList.add("flow", "rising");
+    node.style.setProperty("--n", String(base + amount));
+
+    // la onda: pico al entrar el agua y amortiguación en _transitionStartDuration
+    setTimeout(function () {
+      node.classList.remove("rising");
+      node.classList.add("settling");
+      setTimeout(function () { node.classList.remove("settling"); }, 320);
+    }, RISE_MS);
   }
 
   function shiftWaterToMouth(water, shift, ms) {
@@ -1131,7 +1153,7 @@
 
   // Chorro pegado a la boca: nace en el borde del destino y su punta baja
   // hasta la superficie, que sube en sincronía con la transición del nivel.
-  function showStream(toEl, color, startLevel, amount, pourMs, fromLift) {
+  function showStream(toEl, color, startLevel, amount, pourMs, fromLift, lightColor) {
     var boardRect = boardEl.getBoundingClientRect();
     var t = toEl.getBoundingClientRect();
     var seg = parseFloat(getComputedStyle(boardEl).getPropertyValue("--seg")) || 44;
@@ -1141,7 +1163,8 @@
     var glassTop = t.top - boardRect.top + padTop;
     var glassBottom = t.top - boardRect.top + t.height;
     var x = t.left - boardRect.left + t.width / 2;
-    var width = Math.max(6, Math.round(seg * 0.22));
+    // WATER_FALL del juego: cinta ancha, no un hilo
+    var width = Math.max(11, Math.round(seg * 0.36));
     var top = Math.max(0, glassTop - (fromLift || 0));
 
     function surfaceY(level) {
@@ -1154,6 +1177,7 @@
     node.style.top = top + "px";
     node.style.setProperty("--stream-w", width + "px");
     node.style.setProperty("--stream-color", color);
+    if (lightColor) node.style.setProperty("--stream-light", lightColor);
     node.style.height = Math.max(2, surfaceY(startLevel) - top) + "px";
     boardEl.appendChild(node);
 
@@ -1172,23 +1196,28 @@
   /* Gota que cae dentro del frasco desde la boca hasta la superficie (el "blob" del
    * juego: WaterItem/ItemPartType.Blob, BlobMoveInsideBottleAnimation). Se estira al
    * caer y se aplasta al tocar el agua. Vive en el .glass para que el vidrio la recorte. */
-  function dropBlob(toEl, unitIndex, color) {
+  function dropBlob(toEl, fromLevel, toLevel, color) {
     if (!toEl) return;
     var glass = toEl.querySelector(".glass");
     if (!glass) return;
     var seg = parseFloat(getComputedStyle(boardEl).getPropertyValue("--seg")) || 44;
     var cap = parseInt(toEl.style.getPropertyValue("--cap")) || 4;
     var lseg = seg * (1 - 0.52 / cap);
-    // BlobXYSizeForHeight: 2.3 x 2.5 unidades; el frasco mide ~2.1 de ancho
-    var w = Math.max(14, seg * 1.02);
+    // gota que cae POR DENTRO: ~0.6 unidades (el blob de 2.3 u de BlobXYSizeForHeight
+    // es el de selección, que flota sobre la boca, no el que cae)
+    var w = Math.max(10, seg * 0.62);
     var h = w * (2.5 / 2.3);
-    var yEnd = glass.offsetHeight - unitIndex * lseg;   // superficie del nivel nuevo
+    // el nivel sube mientras la gota cae: apuntar a la superficie de ese instante
+    var yStart = glass.offsetHeight - fromLevel * lseg;
+    var yFinal = glass.offsetHeight - toLevel * lseg;
+    var yEnd = yStart + (yFinal - yStart) * 0.75;
 
     var blob = document.createElement("span");
     blob.className = "blob";
     blob.style.width = w + "px";
     blob.style.height = h + "px";
-    blob.style.left = (glass.offsetWidth / 2) + "px";
+    // corrida a un lado del chorro para que no la parta al medio
+    blob.style.left = (glass.offsetWidth * 0.62) + "px";
     blob.style.top = (-h * 0.6) + "px";
     blob.style.setProperty("--blob-color", color);
     glass.appendChild(blob);
@@ -1670,7 +1699,10 @@
       sp.style.setProperty("--dur", (7 + Math.random() * 8).toFixed(2) + "s");
       sp.style.setProperty("--delay", (-Math.random() * 12).toFixed(2) + "s");
       sp.style.setProperty("--peak", (0.45 + Math.random() * 0.45).toFixed(2));
-      if (Math.random() < 0.4) sp.style.background = "#cdbcff";
+      // dos variantes de sprite (dorada y blanca) para dar variedad sin filtros:
+      // `background` en línea pisaba la imagen y dejaba un cuadrado plano.
+      sp.style.setProperty("--spark",
+        'url("sprites/' + (Math.random() < 0.45 ? "star-white.png" : "star.png") + '")');
       host.appendChild(sp);
     }
   })();
