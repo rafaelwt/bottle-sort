@@ -23,6 +23,22 @@
     17: "#067c65", 18: "#b08000", 19: "#d72c89", 20: "#00ce95",
     21: "#9d54f4", 22: "#b0ab85"
   };
+  // Capas laterales del agua: el juego pinta el borde izquierdo con FrontColor y el
+  // derecho con BackColor (WaterView._leftSprite / _rightSprite). Es sombreado
+  // HORIZONTAL: no toca la unión entre colores.
+  var FRONTS = {
+    0: "#0098d7", 1: "#94a6ff", 2: "#ffb04f", 3: "#74e97f", 4: "#5cc75f",
+    5: "#8d7ffd", 6: "#d98bc8", 7: "#8d8472", 8: "#faea9c", 9: "#cd8bff",
+    10: "#ffb6f3", 11: "#ffb6b1", 13: "#e8e8e8", 17: "#02a886", 18: "#d18425",
+    19: "#ff8dec", 20: "#00ce95", 21: "#cd8bff", 22: "#c3be93"
+  };
+  var BACKS = {
+    0: "#51a8ec", 1: "#2d2bd9", 2: "#cc6519", 3: "#85bd0c", 4: "#0b3d02",
+    5: "#6e73c8", 6: "#8f0d70", 7: "#943e37", 8: "#f9cb0d", 9: "#7f34b7",
+    10: "#fe6fd8", 11: "#dc231f", 13: "#4a4a4a", 17: "#07b08a", 18: "#b18000",
+    19: "#ff45cd", 20: "#00ce95", 21: "#7f34b7", 22: "#c5b75c"
+  };
+
   // Brillo del tapón al completar (ColorConfig.StopperGlowColor del APK).
   var GLOWS = {
     0: "#0198d8", 1: "#1616bf", 2: "#e45900", 3: "#70a502", 4: "#0b3c01",
@@ -380,6 +396,8 @@
     node.style.setProperty("--i", String(start));
     node.style.setProperty("--n", String(count));
     node.style.setProperty("--c", tint(COLORS[color] || "#888"));
+    if (FRONTS[color]) node.style.setProperty("--c-front", FRONTS[color]);
+    if (BACKS[color]) node.style.setProperty("--c-back", BACKS[color]);
     node.dataset.color = String(color);
     if (isTop) {
       var surf = SURFACE_SPRITES[color];
@@ -1075,6 +1093,9 @@
     if (ev.key === "z" && (ev.ctrlKey || ev.metaKey)) { ev.preventDefault(); doUndo(); }
     if (ev.key === "r" && !ev.ctrlKey && !ev.metaKey) doRestart();
   });
+
+  // ?flat deja el agua en color plano (para comparar)
+  if (/[?&]flat\b/.test(location.search)) document.body.classList.add("flat-water");
 
   /* ---------------- arranque ---------------- */
   $("btnSound").textContent = save.sound ? "🔊" : "🔇";

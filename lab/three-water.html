@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prueba 3D — ¿se puede replicar el agua con three.js?</title>
+<style>
+  :root { color-scheme: dark; }
+  html, body { margin: 0; height: 100%; background: #241052; color: #f6f1ff;
+    font: 13px/1.45 system-ui, sans-serif; overflow: hidden; }
+  #scene { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+  .panel { position: fixed; left: 8px; right: 8px; top: 8px; z-index: 3;
+    display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap;
+    padding: 8px 10px; border-radius: 12px; background: #1a0b3ae0; border: 1px solid #ffffff22; }
+  .col { display: grid; gap: 7px; }
+  .row { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+  button { font: inherit; padding: 6px 10px; border-radius: 9px; border: 1px solid #ffffff33;
+    background: #3a1d84; color: #fff; cursor: pointer; }
+  button.on { background: #6b3bd1; border-color: #b18cff; }
+  input[type=range] { width: 130px; }
+  small { color: #cbb6ff; }
+  .sw { display: inline-block; width: 11px; height: 11px; border-radius: 3px; vertical-align: -1px;
+    box-shadow: inset 0 0 0 1px #ffffff44; }
+  .note { position: fixed; left: 8px; right: 8px; bottom: 8px; z-index: 3; padding: 12px 14px;
+    border-radius: 12px; background: #1a0b3af0; border: 1px solid #ffffff22; font-size: 12.5px; }
+  .note[hidden] { display: none; }
+  #btnNote { padding: 4px 9px; }
+  .note b { color: #ffd76a; }
+</style>
+</head>
+<body>
+<canvas id="scene"></canvas>
+
+<div class="note" id="note" hidden>
+  <b>three.js — y por qué NO hace falta</b><br>
+  En el juego el agua es <em>2D</em>: <code>WaterView</code> tiene 4 <code>SpriteRenderer</code>
+  (<code>_leftSprite</code>, <code>_rightSprite</code>, <code>_belowSprite</code>,
+  <code>_bodySprite</code>) + <code>_ellipseBack</code> y un <code>_ellipseFront</code> vectorial.
+  Las capas “front/back” son sprites tintados con los gradientes <code>FrontColor</code> /
+  <code>BackColor</code>, no mallas 3D.<br><br>
+  Esto de acá es lo que daría three.js: se puede, pero queda <em>menos</em> parecido que los
+  sprites originales y agrega 600 KB + WebGL al proyecto.
+</div>
+
+<div class="panel">
+  <div class="col">
+    <div class="row"><strong>botella 1</strong>
+      <button data-color="4" class="on">DGreen</button>
+      <button data-color="1">DBlue</button>
+      <button data-color="2">Orange</button>
+      <button data-color="11">Red</button>
+    </div>
+    <div class="row">
+      <button id="mode3d" class="on">capas front/back</button>
+      <button id="modeFlat">Color plano</button>
+      <label>nivel <input id="level" type="range" min="0" max="4" step="0.25" value="2.5"></label>
+    </div>
+  </div>
+  <div class="row"><small id="info"></small><button id="btnNote">info</button></div>
+</div>
+
+<script src="three.min.js"></script>
+<script>
+/* Prueba de concepto del agua en 3D: dos cilindros concéntricos, uno con
+   FrontColor (delante) y otro con BackColor (detrás), como las dos capas de
+   sprite del juego. Sirve para comparar contra la versión CSS. */
+const PALETTE = {
+  0:  { name: "LBlue",  color: 0x0198d8, elipse: 0x5dc1ff, front: 0x0098d7, back: 0x51a8ec },
+  1:  { name: "DBlue",  color: 0x1616bf, elipse: 0x2955dd, front: 0x94a6ff, back: 0x2d2bd9 },
+  2:  { name: "Orange", color: 0xe45900, elipse: 0xec7c25, front: 0xffb04f, back: 0xcc6519 },
+  3:  { name: "LGreen", color: 0x70a502, elipse: 0xa0c338, front: 0x74e97f, back: 0x85bd0c },
+  4:  { name: "DGreen", color: 0x0b3c01, elipse: 0x2f6016, front: 0x5cc75f, back: 0x0b3d02 },
+  11: { name: "Red",    color: 0xc40602, elipse: 0xe23936, front: 0xffb6b1, back: 0xdc231f }
+};
+
+const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById("scene"), antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+
+const scene = new THREE.Scene();
+const camera = new THREE.OrthographicCamera(-6, 6, 4.4, -4.4, 0.1, 100);
+camera.position.set(0, 2.1, 14);
+camera.lookAt(0, 2.1, 0);
+
+scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+const key = new THREE.DirectionalLight(0xffffff, 1.1); key.position.set(-5, 8, 9); scene.add(key);
+const rim = new THREE.DirectionalLight(0xa9c8ff, 0.9); rim.position.set(6, 4, -7); scene.add(rim);
+
+/* fondo con degradado (el vidrio refracta esto) */
+const bgCanvas = document.createElement("canvas");
+bgCanvas.width = 8; bgCanvas.height = 256;
+const bgCtx = bgCanvas.getContext("2d");
+const grad = bgCtx.createLinearGradient(0, 0, 0, 256);
+grad.addColorStop(0, "#4a24a8"); grad.addColorStop(0.55, "#2c1668"); grad.addColorStop(1, "#140b2c");
+bgCtx.fillStyle = grad; bgCtx.fillRect(0, 0, 8, 256);
+const bgTex = new THREE.CanvasTexture(bgCanvas); bgTex.encoding = THREE.sRGBEncoding;
+const bg = new THREE.Mesh(new THREE.PlaneGeometry(80, 50), new THREE.MeshBasicMaterial({ map: bgTex }));
+bg.position.z = -14; scene.add(bg);
+
+const CAP = 4, R = 1.0, R_NECK = 0.576, NECK = 0.52;
+
+const glassMat = new THREE.MeshPhysicalMaterial({
+  color: 0xbfe0ff, metalness: 0, roughness: 0.06, transmission: 0.92, thickness: 1.1,
+  ior: 1.42, transparent: true, opacity: 0.42, clearcoat: 1, clearcoatRoughness: 0.05,
+  side: THREE.DoubleSide
+});
+const lipMat = new THREE.MeshPhysicalMaterial({ color: 0xcfe8ff, roughness: 0.1, transmission: 0.8,
+  thickness: 0.4, transparent: true, opacity: 0.6, side: THREE.DoubleSide });
+const corkMat = new THREE.MeshStandardMaterial({ color: 0xef8332, roughness: 0.75, metalness: 0.05 });
+
+function bottleProfile() {
+  const pts = [], bottom = 0.16;
+  pts.push(new THREE.Vector2(0.02, 0));
+  pts.push(new THREE.Vector2(R * 0.72, 0.02));
+  pts.push(new THREE.Vector2(R * 0.96, bottom * 0.7));
+  pts.push(new THREE.Vector2(R, bottom * 1.4));
+  pts.push(new THREE.Vector2(R, CAP - NECK));
+  pts.push(new THREE.Vector2(R * 0.97, CAP - NECK + 0.18));
+  pts.push(new THREE.Vector2(R_NECK + 0.06, CAP - NECK + 0.34));
+  pts.push(new THREE.Vector2(R_NECK, CAP - NECK + 0.46));
+  pts.push(new THREE.Vector2(R_NECK, CAP - 0.04));
+  pts.push(new THREE.Vector2(R_NECK + 0.03, CAP));
+  return pts;
+}
+
+const glassGeo = new THREE.LatheGeometry(bottleProfile(), 64);
+const lipGeo = new THREE.TorusGeometry(R_NECK + 0.015, 0.035, 12, 48);
+const waterGeo = new THREE.CylinderGeometry(R * 0.90, R * 0.90, 1, 48, 1, true);
+const surfGeo = new THREE.SphereGeometry(R * 0.90, 48, 16, 0, Math.PI * 2, 0, Math.PI * 0.5);
+const corkGeo = new THREE.CylinderGeometry(R_NECK * 0.92, R_NECK * 0.80, 0.26, 40);
+
+const SLOTS = [0];
+const COLORS = [4];
+const LEVELS = [2.5];
+const bottles = SLOTS.map((x, i) => {
+  const g = new THREE.Group();
+  g.position.x = x;
+  g.add(new THREE.Mesh(glassGeo, glassMat));
+  const lip = new THREE.Mesh(lipGeo, lipMat);
+  lip.rotation.x = Math.PI / 2; lip.position.y = CAP - 0.02;
+  g.add(lip);
+  const back = new THREE.Mesh(waterGeo, new THREE.MeshBasicMaterial({ side: THREE.BackSide }));
+  const front = new THREE.Mesh(waterGeo, new THREE.MeshBasicMaterial({ side: THREE.FrontSide,
+    transparent: true, opacity: 0.55, depthWrite: false }));
+  const surf = new THREE.Mesh(surfGeo, new THREE.MeshBasicMaterial({ side: THREE.DoubleSide, transparent: true, opacity: 0.95 }));
+  g.add(back, front, surf);
+  const cork = new THREE.Mesh(corkGeo, corkMat);
+  cork.position.y = CAP + 0.10; cork.visible = false;
+  g.add(cork);
+  scene.add(g);
+  return { g, back, front, surf, cork, colorId: COLORS[i], level: LEVELS[i] };
+});
+
+let layered = true;
+let firstColor = 4;
+let firstLevel = 2.5;
+
+function paint() {
+  bottles.forEach((b, i) => {
+    if (i === 0) { b.colorId = firstColor; b.level = firstLevel; }
+    const p = PALETTE[b.colorId] || PALETTE[4];
+    b.back.material.color.setHex(layered ? p.back : p.color);
+    b.front.material.color.setHex(layered ? p.front : p.color);
+    b.front.material.opacity = layered ? 0.55 : 0;
+    b.surf.material.color.setHex(p.elipse);
+    const h = Math.max(0.001, b.level);
+    b.back.scale.y = h; b.back.position.y = h / 2;
+    b.front.scale.y = h; b.front.position.y = h / 2;
+    b.surf.scale.set(1, 0.38, 1); b.surf.position.y = h;
+    b.back.visible = b.front.visible = b.surf.visible = b.level > 0.001;
+    b.cork.visible = b.level >= CAP - 0.001;
+  });
+  const p = PALETTE[firstColor];
+  const hex = n => "#" + n.toString(16).padStart(6, "0");
+  document.getElementById("info").innerHTML = layered
+    ? `${p.name}: <span class="sw" style="background:${hex(p.front)}"></span> FrontColor delante +
+       <span class="sw" style="background:${hex(p.back)}"></span> BackColor detrás`
+    : `${p.name}: <span class="sw" style="background:${hex(p.color)}"></span> Color plano (sin volumen)`;
+}
+
+document.querySelectorAll("[data-color]").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll("[data-color]").forEach(b => b.classList.remove("on"));
+    btn.classList.add("on");
+    firstColor = Number(btn.dataset.color);
+    paint();
+  });
+});
+document.getElementById("mode3d").addEventListener("click", e => {
+  layered = true;
+  e.currentTarget.classList.add("on");
+  document.getElementById("modeFlat").classList.remove("on");
+  paint();
+});
+document.getElementById("modeFlat").addEventListener("click", e => {
+  layered = false;
+  e.currentTarget.classList.add("on");
+  document.getElementById("mode3d").classList.remove("on");
+  paint();
+});
+document.getElementById("btnNote").addEventListener("click", () => {
+  const n = document.getElementById("note");
+  n.hidden = !n.hidden;
+});
+document.getElementById("level").addEventListener("input", e => {
+  firstLevel = Number(e.target.value);
+  paint();
+});
+
+function resize() {
+  const w = innerWidth, h = innerHeight;
+  renderer.setSize(w, h, false);
+  const halfH = Math.max(3.4, 2.7 / (w / h)), halfW = halfH * (w / h);
+  camera.left = -halfW; camera.right = halfW; camera.top = halfH; camera.bottom = -halfH;
+  camera.position.set(0, 2.15, 14);
+  camera.lookAt(0, 2.15, 0);
+  camera.updateProjectionMatrix();
+}
+addEventListener("resize", resize);
+resize();
+paint();
+renderer.setAnimationLoop(() => renderer.render(scene, camera));
+
+window.__lab = {
+  setColor: id => { firstColor = id; paint(); },
+  setLevel: v => { firstLevel = v; paint(); },
+  setLayered: v => { layered = v; paint(); },
+  calls: () => renderer.info.render.calls
+};
+</script>
+</body>
+</html>

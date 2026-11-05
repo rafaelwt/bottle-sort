@@ -174,8 +174,15 @@ body {
   right: 0;
   bottom: calc(var(--i, 0) * var(--liquid-seg, var(--seg, 44px)));
   height: calc(var(--n, 1) * var(--liquid-seg, var(--seg, 44px)));
-  background: var(--c);
+  background-color: var(--c);
+  /* volumen del cilindro: borde izquierdo FrontColor, derecho BackColor.
+     Solo horizontal, así la unión entre dos colores sigue siendo una línea recta. */
+  background-image:
+    linear-gradient(90deg, var(--c-front, var(--c)) 0%, transparent 8%),
+    linear-gradient(270deg, var(--c-back, var(--c)) 0%, transparent 8%);
 }
+/* comparación: agua totalmente plana */
+body.flat-water .liquid { background-image: none; }
 
 .liquid.flow { transition: height var(--pour-ms, 520ms) linear, bottom var(--pour-ms, 520ms) linear; }
 
@@ -207,7 +214,8 @@ body {
   60% { transform: translateX(6px) rotate(3deg); }
 }
 
-.bottle.complete .glass { box-shadow: 0 0 0 3px #59f0a866, 0 0 26px #59f0a855; }
+/* completar no dibuja borde: solo el tapón y el halo del color del agua */
+.bottle.complete .glass { box-shadow: 0 6px 14px -8px #00000088; }
 
 /* bloqueadores */
 .blocker {
@@ -471,10 +479,7 @@ body {
   box-shadow: 0 0 0 3px #a06bff66, 0 0 30px #8b5cf666;
 }
 .bottle.magic .frame { filter: drop-shadow(0 0 7px #a06bffaa) saturate(1.15); }
-.bottle.magic.complete .glass {
-  border-color: #8affc1;
-  box-shadow: 0 0 0 4px #59f0a866, 0 0 34px #59f0a877;
-}
+.bottle.magic.complete .glass { box-shadow: 0 0 0 3px #a06bff66, 0 0 30px #8b5cf666; }
 
 /* ---- vertido fluido: chorro, drenaje, squash del frasco ---- */
 .stream {
@@ -514,11 +519,17 @@ body {
   100% { transform: scale(1, 1); }
 }
 
-.bottle.just-complete .glass { animation: complete-pulse .6s ease-out; }
-@keyframes complete-pulse {
-  0% { box-shadow: 0 0 0 0 var(--glow, #59f0a8), 0 0 18px var(--glow, #59f0a8); }
-  60% { box-shadow: 0 0 0 12px transparent, 0 0 26px var(--glow, #59f0a8); opacity: .75; }
-  100% { box-shadow: 0 0 0 0 transparent; }
+.bottle.just-complete .glass::before { animation: complete-glow .7s ease-out; }
+.bottle.just-complete .cork { animation: cork-pop .5s cubic-bezier(.34,1.5,.64,1); }
+@keyframes cork-pop {
+  0% { transform: translate(-50%, -60%) scale(.4); }
+  55% { transform: translate(-50%, -88%) scale(1.12); }
+  100% { transform: translate(-50%, -82%) scale(1); }
+}
+@keyframes complete-glow {
+  0% { opacity: .05; }
+  35% { opacity: .62; }
+  100% { opacity: .30; }
 }
 
 /* ---- sprites originales: vidrio, superficie de agua y corcho ---- */

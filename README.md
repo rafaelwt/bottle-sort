@@ -100,9 +100,13 @@ El frasco se dibuja en capas:
 El contenedor de agua arranca debajo del cuello (`top: calc(var(--seg) * 0.52)`), por eso el
 líquido nunca aparece en la boca de la botella.
 
-El agua va **de color plano** (sin degradados por tramo): el color es el `Color` de cada
-`ColorConfig` del juego y la profundidad la aportan la elipse y el vidrio. La paleta completa está
-en `docs/logic/palette.md`.
+El agua va **de color plano** (`Color` de cada `ColorConfig`) con un borde horizontal de 8 % a cada
+lado: `FrontColor` a la izquierda y `BackColor` a la derecha, que son las dos capas de sprite con
+las que el juego da volumen al cilindro (`WaterView._leftSprite` / `_rightSprite`). Al ser
+horizontal, la unión entre dos colores sigue siendo una línea recta.
+
+`index.html?flat` deja el agua totalmente plana para comparar. La paleta completa y la explicación
+de por qué no se usa 3D están en `docs/logic/palette.md`.
 
 ## Animación y audio
 
@@ -121,6 +125,12 @@ toque y se apaga con el botón de sonido.
 El sonido del vertido depende de la cantidad (`1` a `8` unidades tienen clip propio).
 Todo se reproduce con elementos `Audio` clonados para tolerar solapamientos y funcionar desde
 `file://`.
+
+## Laboratorio
+
+`lab/three-water.html` es una prueba de concepto del agua con three.js (dos cilindros
+concéntricos con `FrontColor`/`BackColor`) más una nota de por qué el juego no necesita 3D.
+No forma parte de la app y no se carga desde `index.html`.
 
 ## Pendiente
 

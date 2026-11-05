@@ -56,8 +56,13 @@ colores) y solubilidad de los 4 modos (885 / 399 / 274 / 1346 niveles).
   del agua (z-index 6).
 - Al completar una botella se agrega `.complete`, que muestra `.cork` (apoyado en la boca:
   `top: var(--pad-top)` con `translate(-50%, -82%)`) y el halo `--glow` del color del agua.
-- El agua es **plana** (`--c` = `ColorConfig.Color`). No agregar degradados por tramo: un
-  `rgba(0,0,0,.22)` al pie de cada banda hacía que las uniones de color parecieran un degradado.
+  **Sin anillo ni borde**: el juego no dibuja nada alrededor del frasco al completarlo.
+- El agua usa `--c` = `ColorConfig.Color` y dos bordes **horizontales** de 8 %
+  (`--c-front` / `--c-back` = `FrontColor` / `BackColor`), que son los `_leftSprite` / `_rightSprite`
+  del juego. Nunca degradados **verticales** por tramo: un `rgba(0,0,0,.22)` al pie de cada banda
+  hacía que las uniones de color parecieran mezcladas. `?flat` desactiva el sombreado para comparar.
+- Nada de three.js: el agua del original son sprites 2D (`WaterView`), no mallas. Ver
+  `docs/logic/palette.md`; `lab/three-water.html` es sólo la comparación.
 
 ## Convenciones
 
