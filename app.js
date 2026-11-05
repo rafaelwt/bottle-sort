@@ -39,6 +39,14 @@
     19: "#ff45cd", 20: "#00ce95", 21: "#7f34b7", 22: "#c5b75c"
   };
 
+  // Color de las estrellas al completar (ColorConfig.ParticleWinColor del APK).
+  var STARS = {
+    0: "#1a97e8", 1: "#2899db", 2: "#de752c", 3: "#5de21a", 4: "#61d925",
+    5: "#4253e9", 6: "#d535a2", 7: "#d5533a", 8: "#deaf23", 9: "#9b3fd7",
+    10: "#eb3aae", 11: "#f24f4f", 13: "#989898", 17: "#3ca893", 18: "#b08000",
+    19: "#d72c89", 20: "#56c0a3", 21: "#9d54f4", 22: "#95906d"
+  };
+
   // Brillo del tapón al completar (ColorConfig.StopperGlowColor del APK).
   var GLOWS = {
     0: "#0198d8", 1: "#1616bf", 2: "#e45900", 3: "#70a502", 4: "#0b3c01",
@@ -155,6 +163,7 @@
   var SFX_FILES = {
     select: "bottle_up", place: "bottle_down", complete: "green_check", win: "win_screen",
     button: "button", cork: "bottle_cork", curtain: "curtain", clay: "clay_break_v2", bubble: "bubble",
+    fill: "bottles_filled",
     pour1: "p_short_1", pour2: "p_short_2", pour3: "p_short_3", pour4: "p_short_4", pour5: "p_short_5",
     pour6: "n_short_6", pour7: "n_short_7", pour8: "n_short_8"
   };
@@ -754,8 +763,9 @@
         if (completed) {
           toEl.classList.add("complete");
           pulse(toEl);
-          setTimeout(function () { sfx("cork"); }, 120);
-          setTimeout(function () { sfx("complete"); }, 260);
+          celebrate(to, E.topColor(game.state.bottles[to]));
+          sfx("fill");                                 // SoundType.BottlesFilled
+          setTimeout(function () { sfx("cork"); }, 110); // SoundType.BottleCork
         }
         setTimeout(function () {
           fromEl.style.transformOrigin = "";
@@ -982,6 +992,78 @@
       node.style.setProperty("--n", String(run.n));
     });
     setTimeout(function () { paintWater(water, index); }, ms + 40);
+  }
+
+  /* ---------------- estrellas al completar la botella ----------------
+   * El juego tira un burst de partículas con el color del agua (ParticleWinColor)
+   * alrededor del frasco, junto con el tapón.
+   */
+  function celebrate(index, colorId) {
+    var el = boardEl.querySelector('[data-index="' + index + '"]');
+    if (!el) return;
+    var board = boardEl.getBoundingClientRect();
+    var r = el.getBoundingClientRect();
+    var cx = r.left - board.left + r.width / 2;
+    var cy = r.top - board.top + r.height * 0.46;
+    var color = STARS[colorId] || "#ffffff";
+    var count = 14;
+
+    for (var i = 0; i < count; i++) {
+      var node = document.createElement("span");
+      node.className = "star";
+      var size = 12 + Math.random() * 14;
+      node.style.setProperty("--size", size.toFixed(0) + "px");
+      node.style.setProperty("--star-color", color);
+
+      // espiral: cada estrella da 1.5-2.2 vueltas alrededor del frasco mientras sube,
+      // con el radio creciendo y el tamaño/opacidad simulando profundidad.
+      var a0 = (Math.PI * 2 * i) / count + Math.random() * 0.4;
+      var turns = 1.4 + Math.random() * 0.8;
+      var radius = r.width * (0.34 + Math.random() * 0.12);
+      var grow = r.width * (0.16 + Math.random() * 0.28);
+      var rise = r.height * (0.45 + Math.random() * 0.35);
+      var dur = 950 + Math.random() * 450;
+      var delay = Math.random() * 180;
+
+      if (node.animate) {
+        var frames = [];
+        var steps = 24;
+        for (var k = 0; k <= steps; k++) {
+          var t = k / steps;
+          var ang = a0 + t * Math.PI * 2 * turns;
+          var depth = Math.sin(ang);
+          var rad = radius + grow * t;
+          var x = cx + Math.cos(ang) * rad;
+          var y = cy - rise * t + depth * rad * 0.16;
+          var scale = (0.7 + 0.5 * (depth + 1) / 2) * (1 - 0.25 * t);
+          var op = (t < 0.1 ? t / 0.1 : (t > 0.72 ? Math.max(0, (1 - t) / 0.28) : 1)) *
+                   (0.55 + 0.45 * (depth + 1) / 2);   // atenuadas cuando pasan por atrás
+          frames.push({
+            transform: "translate(" + x.toFixed(1) + "px, " + y.toFixed(1) + "px) " +
+                       "translate(-50%, -50%) scale(" + scale.toFixed(2) + ") rotate(" + (ang * 57.2958).toFixed(0) + "deg)",
+            opacity: op.toFixed(2)
+          });
+        }
+        node.style.left = "0px";
+        node.style.top = "0px";
+        node.animate(frames, { duration: dur, delay: delay, easing: "linear", fill: "both" });
+      } else {
+        // respaldo sin WAAPI: burst radial simple
+        node.style.left = cx + "px";
+        node.style.top = cy + "px";
+        node.style.setProperty("--dx", (Math.cos(a0) * (radius + grow) * 1.6).toFixed(1) + "px");
+        node.style.setProperty("--dy", ((Math.sin(a0) * (radius + grow) - rise * 0.6)).toFixed(1) + "px");
+        node.style.setProperty("--dur", dur.toFixed(0) + "ms");
+        node.style.setProperty("--delay", delay.toFixed(0) + "ms");
+        node.style.animation = "star-burst " + dur.toFixed(0) + "ms cubic-bezier(.2,.7,.3,1) " +
+          delay.toFixed(0) + "ms forwards";
+      }
+
+      boardEl.appendChild(node);
+      (function (n, life) {
+        setTimeout(function () { if (n.parentNode) n.parentNode.removeChild(n); }, life);
+      })(node, dur + delay + 150);
+    }
   }
 
   function squish(el) {

@@ -117,7 +117,9 @@ El vertido sigue la secuencia del original: la botella **se eleva** en su sitio 
 traslada** sobre la boca del destino (210 ms), **se inclina** y recién entonces cae el agua
 (~130 ms + 520 ms de chorro), llenando el destino **unidad por unidad** con un *squash* de
 1.07/0.95 → 0.97/1.04 → 1. El origen se vacía en sincronía; al completarse una botella suena el
-corcho y aparece el tapón en la boca.
+corcho y aparece el tapón en la boca, con un **remolino de estrellas** del color del agua
+(`ParticleWinColor`) que gira alrededor del frasco mientras sube, el sonido `BottlesFilled` y el
+pop del corcho.
 
 El ángulo de inclinación no es fijo: sale de `_rotationsByHeights` del juego (35° con el destino
 casi lleno, 105° con mucho espacio). Los valores están en `docs/logic/palette.md`.

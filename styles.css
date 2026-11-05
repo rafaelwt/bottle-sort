@@ -726,6 +726,35 @@ body.flat-water .liquid { background-image: none; }
   transition: opacity .18s ease-out, transform .22s cubic-bezier(.34, 1.5, .64, 1);
 }
 .bottle.complete .cork { opacity: 1; transform: translate(-50%, -82%) scale(1); }
+/* estrellas del burst al completar (ParticleWinColor) */
+.star {
+  position: absolute;
+  width: var(--size, 16px);
+  height: var(--size, 16px);
+  margin: 0;
+  background: var(--star-color, #fff);
+  -webkit-mask: url("sprites/star.png") center / 100% 100% no-repeat;
+  mask: url("sprites/star.png") center / 100% 100% no-repeat;
+  filter: drop-shadow(0 0 8px var(--star-color, #fff)) brightness(1.2);
+  pointer-events: none;
+  z-index: 9;
+  opacity: 0;
+}
+@keyframes star-burst {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(.15) rotate(0deg); }
+  22% { opacity: 1; transform: translate(calc(-50% + var(--dx) * .3), calc(-50% + var(--dy) * .3)) scale(1) rotate(35deg); }
+  100% { opacity: 0; transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(.5) rotate(110deg); }
+}
+
+/* la botella hace un pequeño rebote al quedar completa */
+.bottle.just-complete .glass { animation: bottle-pop .46s cubic-bezier(.34,1.4,.64,1); }
+@keyframes bottle-pop {
+  0% { transform: scale(1, 1); }
+  35% { transform: scale(1.05, 1.02); }
+  70% { transform: scale(.99, 1.01); }
+  100% { transform: scale(1, 1); }
+}
+
 /* halo del tapón: solo arriba, en el color del agua (StopperGlowColor) */
 .bottle.complete .glass::before {
   content: "";

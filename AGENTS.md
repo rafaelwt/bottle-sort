@@ -86,6 +86,10 @@ colores) y solubilidad de los 4 modos (885 / 399 / 274 / 1346 niveles).
 - Audio con **dos interruptores separados**: `save.sfxOn` (efectos: "Sonido", corta `sfx()`) y
   `save.musicOn` (música, `syncMusic()`). El panel vive en `#settingsSheet` y se abre con el
   engranaje del HUD. No volver al `save.sound` único.
+- Al completar una botella: `.just-complete` (rebote del frasco + pop del corcho) y `celebrate()`,
+  que anima 14 estrellas en espiral con Web Animations API (`element.animate`). El color sale de
+  `ColorConfig.ParticleWinColor` (`STARS` en `app.js`). Hay respaldo CSS `star-burst` si no hay
+  WAAPI. Los nodos se borran solos; no re-renderizar durante la celebración.
 - Las estrellas del fondo son dos capas: `.bg-stars` (puntos, `stars-breathe`) y `.bg-sparkles`
   (destellos de 4 puntas generados en `buildSparkles()`, `sparkle-twinkle`). Ambas con
   `z-index: 0` y `pointer-events: none`; no las subas de capa.
