@@ -2,6 +2,7 @@
    botellas de vidrio con brillo y agua saturada, HUD y botones tipo caramelo). */
 
 :root {
+  --sp: 1;                 /* multiplicador de velocidad (ajustes) */
   --bg-0: #1b0f3b;
   --bg-1: #2c1668;
   --bg-2: #3b1d86;
@@ -130,6 +131,20 @@ body {
   border: 2px solid rgba(255, 255, 255, .18);
 }
 
+/* ---------------- animaciones desactivadas ---------------- */
+/* No se borra ninguna regla: se comprime la duración a ~0 para que el estado
+   final llegue igual (las transiciones siguen disparando transitionend). */
+html.no-anim *,
+html.no-anim *::before,
+html.no-anim *::after {
+  animation-duration: 1ms !important;
+  animation-delay: 0ms !important;
+  transition-duration: 1ms !important;
+  transition-delay: 0ms !important;
+}
+html.no-anim .bg-sparkles span,
+html.no-anim .bg-stars { animation: none !important; opacity: .5; }
+
 /* ---------------- ajustes (sonido / música) ---------------- */
 .sheet {
   position: fixed;
@@ -154,6 +169,31 @@ body {
   animation: pop .22s ease-out both;
 }
 .sheet-title { font-size: 17px; font-weight: 900; color: var(--gold); text-align: center; }
+.sheet-sep {
+  margin-top: 4px;
+  font-size: 10px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: #b7a4e8;
+  text-align: center;
+}
+.speed-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.speed-chip {
+  padding: 9px 0;
+  border: 2px solid #ffffff2e;
+  border-radius: 13px;
+  background: #ffffff12;
+  color: #d9ccff;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background .12s, color .12s, border-color .12s;
+}
+.speed-chip[aria-pressed="true"] {
+  background: linear-gradient(180deg, #ffdf7a, #f0a81e);
+  border-color: #7a4404;
+  color: var(--ink);
+}
 .toggle {
   display: flex;
   align-items: center;
@@ -255,7 +295,7 @@ body {
   border: 0;
   cursor: pointer;
   transform-origin: 50% 88%;
-  transition: transform .18s cubic-bezier(.34, 1.4, .64, 1);
+  transition: transform calc(.18s / var(--sp)) cubic-bezier(.34, 1.4, .64, 1);
   will-change: transform;
   touch-action: manipulation;   /* sin delay de doble-tap en iOS */
 }
@@ -307,16 +347,17 @@ body {
 /* comparación: agua totalmente plana */
 body.flat-water .liquid { background-image: none; }
 
-.liquid.flow { transition: height var(--pour-ms, 280ms) linear, bottom var(--pour-ms, 520ms) linear; }
+.liquid.flow { transition: height var(--pour-ms, 280ms) linear, bottom calc(var(--pour-ms, 280ms) * 1.8) linear; }
 /* Una sola subida por vertido con el overshoot de _moveUpCurve + _moveUpOffset */
 .liquid.rising {
-  transition: height var(--pour-ms, 280ms) cubic-bezier(.25, 1.15, .5, 1), bottom 520ms linear;
+  transition: height var(--pour-ms, 280ms) cubic-bezier(.25, 1.15, .5, 1),
+              bottom calc(var(--pour-ms, 280ms) * 1.8) linear;
 }
 /* onda de la superficie: pico al entrar y amortiguación en 0.3 s
    (EclipseAnimationConfig: aboveWaveHeight 0.035 -> 0, speed 150) */
 .liquid.rising::before,
-.liquid.settling::before { animation: surface-wave 300ms ease-out forwards; }
-.liquid.settling::before { animation-delay: -140ms; }
+.liquid.settling::before { animation: surface-wave calc(300ms / var(--sp)) ease-out forwards; }
+.liquid.settling::before { animation-delay: calc(-140ms / var(--sp)); }
 @keyframes surface-wave {
   0% { transform: scaleY(1.5) translateY(-8%); }
   35% { transform: scaleY(1.85) translateY(-14%); }
@@ -645,7 +686,7 @@ body.flat-water .liquid { background-image: none; }
   transform-origin: top center;
   pointer-events: none;
   z-index: 6;
-  animation: stream-in .12s ease-out both;
+  animation: stream-in calc(.12s / var(--sp)) ease-out both;
 }
 .stream::after { content: none; }
 
@@ -662,7 +703,7 @@ body.flat-water .liquid { background-image: none; }
 
 .liquid.enter { animation-delay: calc(var(--k, 0) * var(--stagger, 70ms)); }
 
-.bottle.squash .glass { animation: squish .3s cubic-bezier(.34,1.4,.64,1); }
+.bottle.squash .glass { animation: squish calc(.3s / var(--sp)) cubic-bezier(.34,1.4,.64,1); }
 @keyframes squish {
   0% { transform: scale(1, 1); }
   30% { transform: scale(1.07, .93); }
@@ -670,8 +711,9 @@ body.flat-water .liquid { background-image: none; }
   100% { transform: scale(1, 1); }
 }
 
-.bottle.just-complete .glass::before { animation: complete-glow .7s ease-out; }
-.bottle.just-complete .cork { animation: cork-pop .5s cubic-bezier(.34,1.5,.64,1); }
+.bottle.just-complete .glass::before { animation: complete-glow calc(.7s / var(--sp)) ease-out; }
+.bottle.just-complete .cork { animation: cork-pop calc(.5s / var(--sp)) cubic-bezier(.34,1.5,.64,1); }
+.bottle.just-complete .glass { animation: bottle-pop calc(.46s / var(--sp)) cubic-bezier(.34,1.4,.64,1); }
 @keyframes cork-pop {
   0% { transform: translate(-50%, -60%) scale(.4); }
   55% { transform: translate(-50%, -88%) scale(1.12); }
@@ -745,7 +787,8 @@ body.flat-water .liquid { background-image: none; }
   opacity: 0;
   pointer-events: none;
   z-index: 7;
-  transition: opacity .18s ease-out, transform .22s cubic-bezier(.34, 1.5, .64, 1);
+  transition: opacity calc(.18s / var(--sp)) ease-out,
+              transform calc(.22s / var(--sp)) cubic-bezier(.34, 1.5, .64, 1);
 }
 .bottle.complete .cork { opacity: 1; transform: translate(-50%, -82%) scale(1); }
 /* estrellas del burst al completar (ParticleWinColor) */

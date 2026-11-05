@@ -137,6 +137,10 @@ guarda su estado en `localStorage`.
 El fondo tiene el campo de estrellas y destellos de 4 puntas que titilan (respetan
 `prefers-reduced-motion`).
 
+El panel de **ajustes** (engranaje) también controla el ritmo: **Velocidad ×1 / ×2 / ×3** y un
+interruptor de **Animaciones**. Con las animaciones apagadas el juego responde al instante
+(útil para grindear niveles rápido); el estado y las reglas no cambian.
+
 El HUD muestra **tiempo** del nivel: cuenta para arriba y se detiene al ganar. No hay límite: es
 solo para saber cuánto tardaste. El mejor tiempo de cada nivel se guarda en `localStorage`.
 

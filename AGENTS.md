@@ -95,6 +95,17 @@ colores) y solubilidad de los 4 modos (885 / 399 / 274 / 1346 niveles).
   `height` de `.liquid` al frasco afectado.
 - `touch-action: manipulation` en botellas y botones (sin delay de doble-tap en iOS).
 
+## Velocidad y animaciones
+
+- `TM(ms)` escala **toda** espera del juego: divide por `save.speed` y devuelve 0 si
+  `save.animations` es false. Cualquier `setTimeout` nuevo del bucle de juego debe pasar por `TM()`.
+- `applySpeed()` pone `--sp` en `:root` (el CSS divide las duraciones por esa variable) y agrega
+  `html.no-anim`, que comprime animaciones/transiciones a 1 ms sin borrar reglas (el estado final
+  llega igual).
+- Con animaciones apagadas no se crean nodos de efecto: `celebrate()`, `dropBlob()` y
+  `splashAtUnit()` salen temprano.
+- Las animaciones WAAPI (estrellas, gota) dividen su `duration` por la velocidad.
+
 ## Convenciones
 
 - JS sin módulos ES ni bundler: `engine.js` usa UMD para servir tanto al `<script>` como a Node.

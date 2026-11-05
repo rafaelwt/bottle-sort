@@ -96,7 +96,9 @@
       best: {},
       bestTime: {},
       sfxOn: true,
-      musicOn: true
+      musicOn: true,
+      speed: 1,
+      animations: true
     };
   }
 
@@ -276,6 +278,28 @@
     game.stuck = false;
     if (onStuckOverlay) onStuckOverlay.hidden = true;
     resumeClock();
+  }
+
+  /* ---------------- velocidad / animaciones ----------------
+   * `TM(ms)` escala cualquier espera: ÷ velocidad, y 0 si las animaciones están
+   * apagadas. Para CSS se usa `applySpeed()`: pone `--sp` en :root (las duraciones
+   * que dependen del juego lo leen) y pasa las animaciones en curso a
+   * `playbackRate = velocidad` (cubre CSS y WAAPI).
+   */
+  function TM(ms) {
+    if (!save.animations) return 0;
+    return Math.max(0, Math.round(ms / (save.speed || 1)));
+  }
+
+  function applySpeed() {
+    var root = document.documentElement;
+    root.style.setProperty("--sp", String(save.speed || 1));
+    root.classList.toggle("no-anim", !save.animations);
+    if (save.animations && save.speed !== 1 && document.getAnimations) {
+      document.getAnimations().forEach(function (a) {
+        try { a.playbackRate = save.speed; } catch (err) { /* ignore */ }
+      });
+    }
   }
 
   // Cronómetro del nivel: cuenta para arriba, sin límite (solo para saber cuánto tardaste).
@@ -691,7 +715,7 @@
     var seg = parseFloat(getComputedStyle(boardEl).getPropertyValue("--seg")) || 44;
     var lift = Math.max(12, Math.min(seg * 0.45, 24));    // _bottleSelectionAnimationHeight
     var hover = Math.max(18, Math.min(seg * 0.75, 34));   // _heightOffset sobre la boca destino
-    var RISE_MS = 140, MOVE_MS = 210, TILT_MS = 130;
+    var RISE_MS = TM(140), MOVE_MS = TM(210), TILT_MS = TM(130);
 
     // 1) la botella se eleva en su sitio (selección)
     fromEl.classList.remove("selected");
@@ -714,8 +738,9 @@
     game.selected = null;
     movesLabel.textContent = String(game.moves);
 
-    var unitMs = Math.max(75, Math.min(140, 520 / amount));
-    var pourMs = amount * unitMs;
+    var unitMs = save.animations ? Math.max(75, Math.min(140, 520 / amount)) / (save.speed || 1) : 0;
+    var streamMs = Math.max(1, Math.round(amount * unitMs));
+    var pourMs = TM(amount * Math.max(75, Math.min(140, 520 / amount)));
     var ARRIVE = RISE_MS + MOVE_MS;
 
     // 3) se traslada hasta la boca del destino (sin inclinarse todavía)
@@ -768,14 +793,14 @@
 
       fillWater(toWater, to, amount, color, startLevel);
       drainWater(fromWater, amount, pourMs);
-      var stream = showStream(toEl, colorCss, startLevel, amount, pourMs, hover + seg * 0.2, dropColor);
+      var stream = showStream(toEl, colorCss, startLevel, amount, streamMs, hover + seg * 0.2, dropColor);
       sfxPour(amount);
       squish(toEl);
       for (var u = 0; u < amount; u++) {
         (function (unit) {
           var at = Math.round((unit + 1) * unitMs);
           // nivel del agua en el momento del impacto, sobre _moveUpCurve
-          var lvlThen = startLevel + amount * riseProgress(Math.min(1, (at + 40) / RISE_MS));
+          var lvlThen = startLevel + amount * riseProgress(Math.min(1, (at + 40) / Math.max(1, TM(RISE_MS_FULL))));
           setTimeout(function () {
             dropBlob(toEl, lvlThen, finalLevel, dropColor);
           }, Math.max(0, at - 150));
@@ -803,7 +828,7 @@
           pulse(toEl);
           celebrate(to, E.topColor(game.state.bottles[to]));
           sfx("fill");                                 // SoundType.BottlesFilled
-          setTimeout(function () { sfx("cork"); }, 110); // SoundType.BottleCork
+          setTimeout(function () { sfx("cork"); }, TM(110)); // SoundType.BottleCork
         }
         setTimeout(function () {
           fromEl.style.transformOrigin = "";
@@ -813,8 +838,8 @@
           if (E.isWon(game.state)) { finishLevel(); return; }
           hint(completed ? "¡Botella completada!" : "Sigue así: " + remainingBottles() + " botellas por resolver.");
           checkStuck();
-        }, 200);
-      }, pourMs + 80);
+        }, TM(200));
+      }, pourMs + TM(80));
     }, ARRIVE + TILT_MS);
   }
 
@@ -936,7 +961,7 @@
    * 0.05 s (_moveDownDuration). Antes de subir cae una gota (blob) desde la boca
    * hasta la superficie.
    */
-  var RISE_MS = 280;      // _moveUpDuration
+  var RISE_MS_FULL = 280; // _moveUpDuration
 
   /* El agua NO sube a saltos: hace UNA sola subida por vertido, con la curva del
    * juego (`BottleFillAnimationConfig._moveUpCurve`: 0 -> 0.72 en el 31 % del
@@ -976,7 +1001,8 @@
       void node.offsetHeight;   // estado inicial en altura 0 antes de animar
     }
 
-    node.style.setProperty("--pour-ms", RISE_MS + "ms");
+    var riseMs = TM(RISE_MS_FULL);
+    node.style.setProperty("--pour-ms", riseMs + "ms");
     node.classList.add("flow", "rising");
     node.style.setProperty("--n", String(base + amount));
 
@@ -984,8 +1010,8 @@
     setTimeout(function () {
       node.classList.remove("rising");
       node.classList.add("settling");
-      setTimeout(function () { node.classList.remove("settling"); }, 320);
-    }, RISE_MS);
+      setTimeout(function () { node.classList.remove("settling"); }, TM(320));
+    }, riseMs);
   }
 
   function shiftWaterToMouth(water, shift, ms) {
@@ -1031,7 +1057,7 @@
     }
     setTimeout(function () {
       if (top.parentNode) top.parentNode.removeChild(top);
-    }, pourMs + 40);
+    }, pourMs + TM(40));
   }
 
   // Al volver la botella a su posición, el líquido restante baja de la boca
@@ -1072,6 +1098,7 @@
    * alrededor del frasco, junto con el tapón.
    */
   function celebrate(index, colorId) {
+    if (!save.animations) return;
     var el = boardEl.querySelector('[data-index="' + index + '"]');
     if (!el) return;
     var board = boardEl.getBoundingClientRect();
@@ -1119,7 +1146,11 @@
         }
         node.style.left = "0px";
         node.style.top = "0px";
-        node.animate(frames, { duration: dur, delay: delay, easing: "linear", fill: "both" });
+        node.animate(frames, {
+          duration: Math.max(1, dur / (save.speed || 1)),
+          delay: delay / (save.speed || 1),
+          easing: "linear", fill: "both"
+        });
       } else {
         // respaldo sin WAAPI: burst radial simple
         node.style.left = cx + "px";
@@ -1197,7 +1228,7 @@
    * juego: WaterItem/ItemPartType.Blob, BlobMoveInsideBottleAnimation). Se estira al
    * caer y se aplasta al tocar el agua. Vive en el .glass para que el vidrio la recorte. */
   function dropBlob(toEl, fromLevel, toLevel, color) {
-    if (!toEl) return;
+    if (!toEl || !save.animations) return;
     var glass = toEl.querySelector(".glass");
     if (!glass) return;
     var seg = parseFloat(getComputedStyle(boardEl).getPropertyValue("--seg")) || 44;
@@ -1231,13 +1262,13 @@
         // impacto: se aplasta (BlobScaleCurve) y se absorbe (BlobEndSize 1.85x2.0)
         { transform: "translate(-50%, " + (yEnd - h * 0.34) + "px) scale(1.55, .5)", opacity: .95, offset: .93 },
         { transform: "translate(-50%, " + (yEnd - h * 0.10) + "px) scale(.8)", opacity: 0 }
-      ], { duration: fall + 90, easing: "linear", fill: "forwards" });
+      ], { duration: Math.max(1, (fall + 90) / (save.speed || 1)), easing: "linear", fill: "forwards" });
     }
     setTimeout(function () { if (blob.parentNode) blob.parentNode.removeChild(blob); }, fall + 120);
   }
 
   function splashAtUnit(toEl, unitIndex, color) {
-    if (!toEl) return;
+    if (!toEl || !save.animations) return;
     var board = boardEl.getBoundingClientRect();
     var t = toEl.getBoundingClientRect();
     var seg = parseFloat(getComputedStyle(boardEl).getPropertyValue("--seg")) || 44;
@@ -1651,6 +1682,16 @@
   });
   var settingsSheet = $("settingsSheet");
 
+  function syncSpeedUi() {
+    document.querySelectorAll(".speed-chip").forEach(function (chip) {
+      chip.setAttribute("aria-pressed", Number(chip.dataset.speed) === (save.speed || 1) ? "true" : "false");
+    });
+    $("btnAnim").setAttribute("aria-pressed", save.animations ? "true" : "false");
+    $("animState").textContent = save.animations
+      ? (save.speed > 1 ? "Activadas · ×" + save.speed : "Activadas")
+      : "Desactivadas";
+  }
+
   function syncAudioUi() {
     $("btnSfx").setAttribute("aria-pressed", save.sfxOn ? "true" : "false");
     $("btnMusic").setAttribute("aria-pressed", save.musicOn ? "true" : "false");
@@ -1670,6 +1711,24 @@
     persist(); syncAudioUi();
     if (save.sfxOn) sfx("button");
   });
+  document.querySelectorAll(".speed-chip").forEach(function (chip) {
+    chip.addEventListener("click", function () {
+      save.speed = Number(chip.dataset.speed) || 1;
+      persist();
+      applySpeed();
+      syncSpeedUi();
+      sfx("button");
+    });
+  });
+
+  $("btnAnim").addEventListener("click", function () {
+    save.animations = !save.animations;
+    persist();
+    applySpeed();
+    syncSpeedUi();
+    if (save.sfxOn) sfx("button");
+  });
+
   $("btnMusic").addEventListener("click", function () {
     save.musicOn = !save.musicOn;
     persist(); syncAudioUi(); syncMusic();
@@ -1712,6 +1771,8 @@
 
   /* ---------------- arranque ---------------- */
   syncAudioUi();
+  syncSpeedUi();
+  applySpeed();
   document.addEventListener("pointerdown", function once() {
     document.removeEventListener("pointerdown", once);
     startMusic();
