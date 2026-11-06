@@ -6,7 +6,7 @@
  * - Estáticos: stale-while-revalidate.
  * Subir CACHE_VERSION en cada release para invalidar.
  */
-const CACHE_VERSION = "bottle-sort-v1";
+const CACHE_VERSION = "bottle-sort-v2";
 const SHELL = [
   "./",
   "index.html",

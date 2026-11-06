@@ -143,6 +143,14 @@ colores) y solubilidad de los 4 modos (885 / 399 / 274 / 1346 niveles).
 - `localStorage` es por origen y sobrevive a los deploys. Mantener el patrón de `loadSave()`
   (defaults + merge) para no romper guardados viejos.
 
+## Sin selección de texto (iOS)
+
+- `html`, `body` y toda la interfaz llevan `-webkit-touch-callout: none`,
+  `-webkit-user-select: none` y `user-select: none`. Sin el `-webkit-touch-callout`, iOS muestra el
+  menú "Copiar/Compartir" al mantener pulsado el tablero.
+- Además se cancelan `contextmenu`, `dragstart` y `selectstart` (salvo en `input`/`textarea`).
+  `touch-action: manipulation` en botones evita el zoom por doble toque.
+
 ## Convenciones
 
 - JS sin módulos ES ni bundler: `engine.js` usa UMD para servir tanto al `<script>` como a Node.

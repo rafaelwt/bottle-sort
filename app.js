@@ -1796,6 +1796,17 @@
     if (ev.key === "r" && !ev.ctrlKey && !ev.metaKey) doRestart();
   });
 
+  /* iOS/Android: mantener pulsado sobre el tablero abría el menú contextual
+   * ("Copiar", "Compartir"). Se bloquea; en escritorio también el clic derecho.
+   * El CSS (`-webkit-touch-callout: none`) cubre el resto. */
+  document.addEventListener("contextmenu", function (ev) {
+    ev.preventDefault();
+  });
+  document.addEventListener("dragstart", function (ev) { ev.preventDefault(); });
+  document.addEventListener("selectstart", function (ev) {
+    if (!ev.target.closest("input, textarea")) ev.preventDefault();
+  });
+
   // destellos de 4 puntas repartidos por el fondo
   (function buildSparkles() {
     var host = document.getElementById("bgSparkles");
