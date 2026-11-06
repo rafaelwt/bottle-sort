@@ -4,6 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>Bottle Sort — puzzle de agua</title>
+<meta name="description" content="Ordená las botellas por color. 4 modos y más de 2.900 niveles, funciona sin conexión.">
+<meta name="author" content="RWT">
+<meta name="theme-color" content="#2c1668">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Bottle Sort">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%232c1668'/%3E%3Ccircle cx='32' cy='24' r='9' fill='%23ffcc45'/%3E%3Crect x='21' y='36' width='22' height='20' rx='7' fill='%234fc3f7'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="styles.css">
 </head>
@@ -83,7 +92,14 @@
       <span class="toggle-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7L8 5Z"/></svg><span class="slash" aria-hidden="true"></span></span>
       <span class="toggle-txt"><b>Animaciones</b><small id="animState">Activadas</small></span>
     </button>
+    <button class="install-btn" id="btnInstall" hidden>
+      <span class="install-ico" aria-hidden="true">⬇</span>
+      <span id="installLabel">Instalar app</span>
+    </button>
+    <div class="install-hint" id="installHint" hidden></div>
+
     <button class="ghost" id="btnCloseSettings">Cerrar</button>
+    <div class="credit">Desarrollado por <b>RWT</b></div>
   </div>
 </div>
 

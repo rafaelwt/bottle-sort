@@ -171,6 +171,24 @@ audio, el índice de 329 animaciones y la documentación de las clases, enums, f
 mapas de animación/audio y —en `docs/logic/palette.md` + `configs.json`— la paleta exacta y los
 valores de animación del juego (tiempos, curvas y tabla de rotación).
 
+## PWA (offline e instalación)
+
+La app es instalable y funciona sin conexión:
+
+- `manifest.webmanifest` + `icons/` — nombre, colores e iconos (incluye `maskable` y `apple-touch-icon`).
+- `sw.js` — precachea el shell, los niveles y los 34 sprites (~4,3 MB); los sonidos se
+  cachean a demanda. Navegación *network-first* (para recibir versiones nuevas) con respaldo
+  en caché, estáticos *stale-while-revalidate*.
+- En **Ajustes** aparece **Instalar app** cuando el navegador lo permite (Chrome/Edge/Android);
+  en iPhone se muestra la instrucción *Compartir → Añadir a pantalla de inicio*. Si ya está
+  instalada, el botón no aparece.
+- Al publicar una versión nueva, subir `CACHE_VERSION` en `sw.js` para invalidar la caché.
+
+El progreso vive en `localStorage` (`magicsort.web.v2`), atado al origen: **sobrevive a las
+actualizaciones**. `loadSave()` parte de los valores por defecto y encima aplica lo guardado, así
+que agregar campos nuevos no rompe partidas viejas (para un cambio incompatible, subir la clave a
+`.v3` y migrar).
+
 ## Deploy
 
 Sitio 100% estático, sin build. En Netlify:

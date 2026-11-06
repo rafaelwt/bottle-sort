@@ -1819,6 +1819,72 @@
     }
   })();
 
+  /* ---------------- PWA: instalación y offline ----------------
+   * Android/Chrome/Edge: `beforeinstallprompt` da un prompt nativo, así que el botón
+   * "Instalar app" lo dispara. iOS no tiene ese evento: se muestra la instrucción de
+   * Compartir → Añadir a pantalla de inicio. Si ya corre instalada, no se muestra nada.
+   */
+  var installEvent = null;
+  var isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) ||
+              (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  var isStandalone = window.matchMedia("(display-mode: standalone)").matches ||
+                     navigator.standalone === true;
+
+  function syncInstallUi() {
+    var btn = $("btnInstall");
+    var hint = $("installHint");
+    if (!btn || !hint) return;
+    if (isStandalone) { btn.hidden = true; hint.hidden = true; return; }
+    if (installEvent) {
+      btn.hidden = false;
+      hint.hidden = true;
+      $("installLabel").textContent = "Instalar app";
+      return;
+    }
+    btn.hidden = true;
+    if (isIOS) {
+      hint.hidden = false;
+      hint.textContent = "Para tenerla como app: Compartir → Añadir a pantalla de inicio.";
+    } else {
+      // otros navegadores sin prompt (Firefox de escritorio, etc.)
+      hint.hidden = false;
+      hint.textContent = "Buscá \"Instalar\" o \"Añadir a pantalla de inicio\" en el menú del navegador.";
+    }
+  }
+
+  window.addEventListener("beforeinstallprompt", function (ev) {
+    ev.preventDefault();
+    installEvent = ev;
+    syncInstallUi();
+  });
+  window.addEventListener("appinstalled", function () {
+    installEvent = null;
+    syncInstallUi();
+  });
+
+  function setupInstall() {
+    var btn = $("btnInstall");
+    if (btn) {
+      btn.addEventListener("click", function () {
+        if (!installEvent) return;
+        installEvent.prompt();
+        installEvent.userChoice.then(function () {
+          installEvent = null;
+          syncInstallUi();
+        });
+      });
+    }
+    syncInstallUi();
+  }
+
+  function registerServiceWorker() {
+    if (!("serviceWorker" in navigator)) return;
+    if (location.protocol !== "http:" && location.protocol !== "https:") return;  // file://
+    window.addEventListener("load", function () {
+      navigator.serviceWorker.register("sw.js").catch(function () { /* sin offline */ });
+    });
+  }
+
   // ?flat deja el agua en color plano (para comparar)
   if (/[?&]flat\b/.test(location.search)) document.body.classList.add("flat-water");
 
@@ -1826,6 +1892,8 @@
   syncAudioUi();
   syncSpeedUi();
   applySpeed();
+  setupInstall();
+  registerServiceWorker();
   document.addEventListener("pointerdown", function once() {
     document.removeEventListener("pointerdown", once);
     startMusic();

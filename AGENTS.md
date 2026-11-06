@@ -128,6 +128,21 @@ colores) y solubilidad de los 4 modos (885 / 399 / 274 / 1346 niveles).
   `splashAtUnit()` salen temprano.
 - Las animaciones WAAPI (estrellas, gota) dividen su `duration` por la velocidad.
 
+## PWA
+
+- `sw.js` cachea el shell + `data/` + `sprites/` en `install`; los sonidos van a demanda.
+  **Subir `CACHE_VERSION` en cada release** o los usuarios quedan en la versión vieja.
+- Navegación *network-first* (si no, las actualizaciones nunca llegan), estáticos
+  *stale-while-revalidate*, sonidos *cache-first*.
+- `sw.js` y el manifest se sirven con `Cache-Control: no-cache` desde `netlify.toml`; sin eso el
+  navegador no ve el worker nuevo.
+- El botón **Instalar app** depende de `beforeinstallprompt` (no existe en iOS): en iPhone se
+  muestra la instrucción de *Añadir a pantalla de inicio*. No agregar nada que asuma que el
+  evento existe.
+- El service worker no corre en `file://`; `registerServiceWorker()` lo saltea.
+- `localStorage` es por origen y sobrevive a los deploys. Mantener el patrón de `loadSave()`
+  (defaults + merge) para no romper guardados viejos.
+
 ## Convenciones
 
 - JS sin módulos ES ni bundler: `engine.js` usa UMD para servir tanto al `<script>` como a Node.
